@@ -3,177 +3,220 @@ import type { ProtocolStep, ProtocolSource } from './types';
 export const MOCK_PROTOCOL_STEPS: ProtocolStep[] = [
   {
     id: 0,
-    title: 'System Initialization',
+    title: 'Create Agent',
     sender: 'DEPLOYER',
-    receiver: 'AGENT',
-    description: 'Deployer initializes AI Agent instance, provisioning it with access to underlying Developer models.',
+    receiver: 'PROVIDER',
+    description: 'Deployer asks the provider to initialize an AI Agent instance backed by a third party developer\'s foundation model.',
     payload: {
       action: 'INITIALIZE_AGENT',
-      agent_id: 'agent_v2_alpha',
-      configured_providers: ['llm_developer_primary', 'llm_developer_fallback'],
     },
-    accomplishment: ''
+    accomplishment: '',
+    accomplishment_title: ''
   },
   {
     id: 1,
-    title: 'Initial Request',
-    sender: 'DEPLOYER',
+    title: 'Start Agent Instance',
+    sender: 'PROVIDER',
     receiver: 'AGENT',
-    description: 'Deployer sends a natural language request to the active Agent to cancel a meeting.',
+    description: 'Provider provisions a compute process to invoke tools and call external services, as appropriate.',
     payload: {
-      request_string: 'Cancel my meeting tomorrow with my manager',
-      deployer_id: 'deployer_101',
-      request_id: 'req_001'
+      
     },
-    accomplishment: 'The Deployer ID and a unique Request ID are bound to the intent, establishing who asked for the action and initiating the session.'
+    accomplishment: 'The Provider establishes control over the agent\'s compute process. It can later terminate this process if necessary.',
+    accomplishment_title: 'Provider control over agent instance'
   },
   {
     id: 2,
-    title: 'Model Planning & Attestation',
-    sender: 'AGENT',
+    title: 'Initial Prompt',
+    sender: 'DEPLOYER',
     receiver: 'PROVIDER',
-    description: 'Agent forwards the natural language request to the LLM Developer to parse the intent, select tools, and request a signed Model ID.',
+    description: 'Deployer sends a natural language prompt to the active Agent to transfer 1000 USD between two of their bank accounts.',
     payload: {
-      prompt: 'Parse request: "Cancel my meeting tomorrow with my manager"',
-      agent_identity: 'agent_v2_alpha',
-      request_attestation: true
+      deployer_prompt: 'Transfer 1000 USD from my checking account to my savings account',
+      prompt_hash: '[hash of the prompt]',
+      receiving_service: 'bank.com',
+      deployer_identifier_on_service: 'deployer\'s username on bank.com',
+      deployer_identifier: 'deployer\'s username on provider.net',
+      deployer_accountability_id: 'Jane Doe',
     },
-    accomplishment: 'Establishes cryptographic proof of the agent and model used.'
+    accomplishment: 'Elements of the agent ID will bind to this prompt by referencing its hash.',
+    accomplishment_title: 'ID elements can bind to the prompt'
   },
   {
     id: 3,
-    title: 'Plan & Signed ID Return',
+    title: 'Call the Foundation Model',
     sender: 'PROVIDER',
-    receiver: 'AGENT',
-    description: 'LLM Developer returns the parsed MCP plan along with a cryptographically signed Model ID binding the Developer to the output.',
+    receiver: 'DEVELOPER',
+    description: 'Agent forwards the natural language request to the LLM Developer to process the prompt, select tools, and request the developer\'s signed attestation.',
     payload: {
-      action_plan: {
-        tool: 'calendar_provider',
-        method: 'delete_event',
-        arguments: { date: 'tomorrow', query: 'manager' }
-      },
-      model_id: 'model_xyz',
-      developer_id: 'dev_99',
-      developer_signature: 'sig_p4k9... (signed_by_developer)'
+      prompt: 'Transfer 1000 USD from my checking account to my savings account',
+      receiving_service: 'bank.com',
+      request_attestation: true
     },
-    accomplishment: 'The cryptographically signed Model ID is attached to the request, binding the LLM Developer to the resulting plan.'
+    accomplishment: '',
+    accomplishment_title: ''
   },
   {
     id: 4,
-    title: 'CIBA Initiation & Attestation',
-    sender: 'AGENT',
-    receiver: 'SERVICE',
-    description: 'Agent generates a session keypair and initiates an OAuth 2.0 CIBA request with the Provider\'s cryptographic attestation.',
+    title: 'Developer returns Action Plan & Signed Attestation Return',
+    sender: 'DEVELOPER',
+    receiver: 'PROVIDER',
+    description: 'LLM Developer returns a plan for the provider to execute, along with cryptographically signed attestations about the foundation model and its safety testing.',
     payload: {
-      action: 'CIBA_AUTH_REQUEST',
-      requested_scopes: ['calendar.read', 'calendar.event.delete'],
-      agent_id: 'agent_v2_alpha',
-      model_id: 'model_xyz',
-      agent_public_key: 'pub_k9x2...',
-      attestation_proof: 'sig_p4k9... (signed_by_provider)'
+      action_plan: {
+        tool: 'bank_api_call',
+        method: 'transfer_funds',
+        arguments: { recipient_account_type: 'sender_owned' }
+      },
+      foundation_model_identifier: 'Commerical ModelName_4.2',
+      developer_id: 'LLM Developer XYZ',
+      foundation_model_safety_evidence: 'LLMDevXYZ.org/commercial_modelname_4_2_safety_report',
+      developer_attestation: 'signed: prompt_hash + developer information'
     },
-    accomplishment: 'The Agent attaches its own cryptographic public key and an attestation proof, securing its identity before initiating the connection to the Service.'
+    accomplishment: 'The developer gives a signed attestation about the model used by the AI agent.',
+    accomplishment_title: 'Add developer\'s information to agent ID'
   },
   {
     id: 5,
-    title: 'Out-of-Band Auth Request',
-    sender: 'SERVICE',
-    receiver: 'DEPLOYER',
-    description: 'Service validates the attestation and contacts the Deployer directly via an out-of-band channel (e.g., push notification) requesting delegated authorization.',
+    title: 'Prepare Agent to Act',
+    sender: 'PROVIDER',
+    receiver: 'AGENT',
+    description: 'Provider supplies its own identifier and safety evidence to the agent. The provider also establishes an emergency shutdown access point for this agent instance.',
     payload: {
-      action: 'CIBA_AUTH_PROMPT',
-      requested_scopes: ['calendar.read', 'calendar.modify'],
-      verified_agent: true,
-      verified_model: 'model_xyz'
+      action: 'PREPARE_AGENT',
+      provider_identifier: 'provider \#202',
+      provider_security_evidence: 'provider.net/security_evidence/agent_instance_12345',
+      agent_instance_identifier: 'agent_instance_12345',
+      agent_instance_shutdown_command: 'code: 5559',
+      provider_attestation: 'signed: prompt_hash + provider information'
     },
-    accomplishment: 'Establishes a secure, out-of-band human-in-the-loop consent flow.'
+    accomplishment: 'The provider gives a signed attestation about its own identity and the presence of an emergency shutdown mechanism.',
+    accomplishment_title: 'Add provider\'s information to agent ID'
   },
   {
     id: 6,
-    title: 'Authentication & Policy Config',
+    title: 'Agent asks the service for authorization from the deployer',
+    sender: 'AGENT',
+    receiver: 'SERVICE',
+    description: 'The agent initiates an OAuth 2.0 CIBA request to the service, on behalf of the deployer.',
+    payload: {
+      action: 'CIBA_AUTH_REQUEST',
+      requested_scopes: ['transfer_funds, recipient_account_type: \'sender_owned\''],
+      deployer_identifier_on_service: 'deployer\'s username on bank.com',
+    },
+    accomplishment: '',
+    accomplishment_title: ''
+  },
+  {
+    id: 7,
+    title: 'Service asks for authorization from the deployer',
+    sender: 'SERVICE',
+    receiver: 'DEPLOYER',
+    description: 'Service contacts the Deployer directly for authorization.',
+    payload: {
+      action: 'CIBA_AUTH_PROMPT',
+      requested_scopes: ['transfer_funds', 'recipient_account_type: \'sender_owned\''],
+      provider_domain: 'provider.net',
+    },
+    accomplishment: '',
+    accomplishment_title: ''
+  },
+  {
+    id: 8,
+    title: 'Deployer confirms authorization to the service',
     sender: 'DEPLOYER',
     receiver: 'SERVICE',
     description: 'Deployer authenticates, confirms scopes, and specifies remediation guardrails using a standardized machine-readable policy language.',
     payload: {
-      status: 'AUTHORIZED',
-      approved_scopes: ['calendar.read', 'calendar.modify'],
-      policies: {
-        engine: 'OPA/Rego',
-        rules: ['Disallowed_Actions = [Add_Attendee]']
-      }
+      oauth_status: 'AUTHORIZED',
+      approved_scopes: ['transfer_funds', 'recipient_account_type: \'sender_owned\''],
     },
-    accomplishment: 'Binds explicit human consent with machine-readable, enforceable runtime policies.'
-  },
-  {
-    id: 7,
-    title: 'DPoP Token Issuance',
-    sender: 'SERVICE',
-    receiver: 'AGENT',
-    description: 'Service completes the CIBA flow by issuing a DPoP access token, cryptographically bound to the Agent\'s public key.',
-    payload: {
-      access_token: 'dpop_at_98f2...',
-      token_type: 'DPoP',
-      expires_in: 3600,
-      granted_scopes: ['calendar.read', 'calendar.event.delete']
-    },
-    accomplishment: 'The Service issues a Proof-of-Possession token bound specifically to the Agent\'s keys, preventing token theft, and attaches the Deployer\'s policy rules.'
-  },
-  {
-    id: 8,
-    title: 'Action Execution',
-    sender: 'AGENT',
-    receiver: 'SERVICE',
-    description: 'Agent uses the DPoP token to perform the action, signing the API request to prove possession of the private key.',
-    payload: {
-      action: 'DELETE_EVENT',
-      filter: { query: 'manager', timeframe: 'tomorrow' },
-      dpop_signature: 'sig_a7f9...',
-      access_token: 'dpop_at_98f2...'
-    },
-    accomplishment: 'Cryptographically proven agent successfully executes authorized actions.'
+    accomplishment: 'Deployer authorizes access for specified scopes directly with the service.',
+    accomplishment_title: 'Secure authorization via OAuth 2.0 CIBA flow'
   },
   {
     id: 9,
-    title: 'Secure Audit Logging',
+    title: 'OAuth Response to Agent',
     sender: 'SERVICE',
-    receiver: 'AUDIT_LOG',
-    description: 'Service records the agent\'s use of the token and the request context into the immutable audit trail.',
+    receiver: 'AGENT',
+    description: 'Service issues an authorization token to the agent.',
     payload: {
-      event: 'ACCESS_LOG',
-      subject: 'agent_v2_alpha',
-      action: 'DELETE_EVENT',
-      resource: 'calendar_event_992',
-      request_id: 'req_001',
-      authorization_ref: 'ciba_auth_xyz'
+      oauth_access_token: 'dpop_at_98f2...',
+      expires_in: 3600,
+      granted_scopes: ['transfer_funds', 'recipient_account_type: \'sender_owned\''],
     },
-    accomplishment: 'Ensures accountability by linking every action to the specific human authorization and request ID.'
+    accomplishment: 'The Agent is authorized to perform the requested actions.',
+    accomplishment_title: 'Agent is authorized'
   },
   {
-    id: '10a',
-    title: 'Outcome A: Success',
+    id: 10,
+    title: 'Agent Performs Action',
     sender: 'AGENT',
-    receiver: 'DEPLOYER',
-    description: 'Upon successful completion of the task, the agent notifies the Deployer of the result.',
+    receiver: 'SERVICE',
+    description: 'Agent uses the authorization token to perform the action.',
+    payload: {
+      action: 'TRANSFER_FUNDS',
+      transaction_details: {
+        amount: '1000 USD',
+        from_account: 'checking',
+        to_account: 'savings'
+      },
+      oauth_access_token: 'dpop_at_98f2...',
+      agent_id: 'see credential details',
+    },
+    accomplishment: 'Cryptographically proven agent successfully executes authorized actions.',
+    accomplishment_title: ''
+  },
+  {
+    id: 11,
+    title: 'Service Logging',
+    sender: 'SERVICE',
+    receiver: 'SERVICE_LOG',
+    description: 'Service records the agent\'s request including relevant fields from the agent ID.',
+    payload: {
+      transaction_details: {
+        amount: '1000 USD',
+        from_account: 'checking',
+        to_account: 'savings'
+      },
+      agent_id: 'see credential details',
+    },
+    accomplishment: 'The service can log fields form the agent ID that could support any future investigations.',
+    accomplishment_title: 'Log the agent ID'
+  },
+  {
+    id: '12a',
+    title: 'Outcome A: Accept Request',
+    sender: 'SERVICE',
+    receiver: 'AGENT',
+    description: 'If the request and agent ID satisfy the service, it completes the action and notifies the agent.',
     payload: {
       status: 'SUCCESS',
-      task: 'Meeting Cancellation',
-      message: 'Meeting with manager tomorrow has been removed from calendar.'
+      transaction_details: {
+        amount: '1000 USD',
+        from_account: 'checking',
+        to_account: 'savings',
+      },
     },
-    accomplishment: 'Closes the loop for the deployer, confirming the autonomous agent fulfilled the intent.'
+    accomplishment: 'With the appropriate authorization and trust signals, the agent successfully completes the task for the deployer.',
+    accomplishment_title: 'Secure Action Completed'
   },
   {
-    id: '10b',
-    title: 'Outcome B: Breach & Remediation',
+    id: '12b',
+    title: 'Outcome B: Reject Request',
     sender: 'SERVICE',
-    receiver: 'DEPLOYER',
-    description: 'In a breach scenario (e.g., agent attempts to exceed scope), the service enforces the policy and notifies the Deployer of remediation.',
+    receiver: 'AGENT',
+    description: 'If the request or agent ID do not satisfy the service, it declines to carry out the action and notifies the agent.',
     payload: {
-      status: 'POLICY_VIOLATION',
-      detected_action: 'ADD_ATTENDEE',
-      remediation: 'ACCESS_REVOKED',
-      details: 'Agent attempted to add unauthorized attendee to meeting.'
+      status: 'ACTION_REJECTED',
+      transaction_details: {
+        amount: '1000 USD',
+        from_account: 'checking',
+        to_account: 'savings',
+      },
     },
-    accomplishment: 'Active enforcement: the Service protects the user by revoking access the moment a policy boundary is crossed.'
+    accomplishment: 'Without the appropriate authorization and trust signals, the agent declines to carry out the task',
+    accomplishment_title: 'Insecure Request Rejected'
   }
 ];
 

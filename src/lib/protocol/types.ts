@@ -1,4 +1,10 @@
-export type Actor = 'DEPLOYER' | 'PROVIDER' | 'SERVICE' | 'AGENT' | 'AUDIT_LOG';
+export type Actor = 
+'DEVELOPER' |
+'DEPLOYER' | 
+'PROVIDER' | 
+'SERVICE' | 
+'AGENT' | 
+'SERVICE_LOG';
 
 export interface ProtocolStep {
   id: string | number;
@@ -8,11 +14,14 @@ export interface ProtocolStep {
   description: string;
   payload: Record<string, unknown>;
   accomplishment: string;
+  accomplishment_title: string;
 }
 
 export interface ActorInfo {
   label: string;
   icon: string;
+  description: string;
+  sendsTo: Actor[];
 }
 
 export interface ProtocolSource {
