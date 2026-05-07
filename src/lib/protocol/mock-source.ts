@@ -3,21 +3,7 @@ import type { ProtocolStep, ProtocolSource, IdComponent } from './types';
 // function that generates protocolsteps based on inputs
 
 export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
-  'Standard CIBA (OAuth 2.0)': [
-  {
-    id: 0,
-    title: 'System Initialization',
-    sender: 'DEPLOYER',
-    receiver: 'AGENT',
-    description: 'Deployer initializes AI Agent instance, provisioning it with access to underlying Developer models.',
-    payload: {
-      action: 'INITIALIZE_AGENT',
-      agent_id: 'agent_v2_alpha',
-      configured_providers: ['llm_developer_primary', 'llm_developer_fallback'],
-    },
-    accomplishment_title: '',
-    accomplishment: ''
-  }],
+  
   'With Agent ID': [
     {
     id: 0,
@@ -236,8 +222,24 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
     accomplishment: 'Without the appropriate authorization and trust signals, the agent declines to carry out the task',
     accomplishment_title: 'Insecure Request Rejected'
   }
-  ]
-];
+  ],
+  'Standard CIBA (OAuth 2.0)': [
+  {
+    id: 0,
+    title: 'System Initialization',
+    sender: 'DEPLOYER',
+    receiver: 'AGENT',
+    description: 'Deployer initializes AI Agent instance, provisioning it with access to underlying Developer models.',
+    payload: {
+      action: 'INITIALIZE_AGENT',
+      agent_id: 'agent_v2_alpha',
+      configured_providers: ['llm_developer_primary', 'llm_developer_fallback'],
+    },
+    accomplishment_title: '',
+    accomplishment: ''
+  }
+  ],
+};
 
 export class MockProtocolSource implements ProtocolSource {
   async getSteps(flowName: string = 'Standard CIBA (OAuth 2.0)'): Promise<ProtocolStep[]> {

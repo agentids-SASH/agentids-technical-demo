@@ -134,20 +134,6 @@ export const ProtocolFlow = () => {
     return { midX, midY, angle };
   }, [arrowData]);
 
-  const idComponents = useMemo(() => [
-    { label: 'Deployer Identifier', value: 'deployer \#101', active: currentStepIdx >= 2 },
-    { label: 'Deployer Accountability ID', value: 'Jane Doe', active: currentStepIdx >= 2 },
-    { label: 'Provider Identifier', value: 'provider \#202', active: currentStepIdx >= 5 },
-    { label: 'Provider Security Evidence', value: 'provider \#202', active: currentStepIdx >= 5 },
-    { label: 'Prompt Hash', value: '[hash of the prompt]', active: currentStepIdx >= 2 },
-    { label: 'Foundation Model Identifier', value: 'foundation model name', active: currentStepIdx >= 4 },
-    { label: 'Foundation Model Safety Evidence', value: 'foundation model safety evidence', active: currentStepIdx >= 4 },
-    { label: 'Agent Instance Identifier', value: 'agent_instance \#7343', active: currentStepIdx >= 5 },
-    { label: 'Agent Instance Shutdown Command', value: 'agent_instance_shutdown code: 5559', active: currentStepIdx >= 5 },
-    { label: 'Policy Rules', value: 'OPA Bounds', active: currentStepIdx >= 9 },
-    { label: 'OAuth Access Token', value: 'dpop_at_98f2...', active: currentStepIdx >= 9 },
-  ], [currentStepIdx]);
-
   const idGroupDefinitions = useMemo(() => [
     {
       title: 'Who directed the agent?',
@@ -216,7 +202,8 @@ export const ProtocolFlow = () => {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex bg-muted/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm">
+           {/* Commented out until second view added. */}
+          {/* <div className="flex bg-muted/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm">
             {Object.keys(MOCK_PROTOCOL_FLOWS).map((flow) => (
               <button
                 key={flow}
@@ -232,7 +219,7 @@ export const ProtocolFlow = () => {
                 {flow}
               </button>
             ))}
-          </div>
+          </div> */}
         </div>
       </div>
 
