@@ -1,7 +1,25 @@
-import type { ProtocolStep, ProtocolSource } from './types';
+import type { ProtocolStep, ProtocolSource, IdComponent } from './types';
 
-export const MOCK_PROTOCOL_STEPS: ProtocolStep[] = [
+// function that generates protocolsteps based on inputs
+
+export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
+  'Standard CIBA (OAuth 2.0)': [
   {
+    id: 0,
+    title: 'System Initialization',
+    sender: 'DEPLOYER',
+    receiver: 'AGENT',
+    description: 'Deployer initializes AI Agent instance, provisioning it with access to underlying Developer models.',
+    payload: {
+      action: 'INITIALIZE_AGENT',
+      agent_id: 'agent_v2_alpha',
+      configured_providers: ['llm_developer_primary', 'llm_developer_fallback'],
+    },
+    accomplishment_title: '',
+    accomplishment: ''
+  }],
+  'With Agent ID': [
+    {
     id: 0,
     title: 'Create Agent',
     sender: 'DEPLOYER',
@@ -218,10 +236,32 @@ export const MOCK_PROTOCOL_STEPS: ProtocolStep[] = [
     accomplishment: 'Without the appropriate authorization and trust signals, the agent declines to carry out the task',
     accomplishment_title: 'Insecure Request Rejected'
   }
+  ]
 ];
 
 export class MockProtocolSource implements ProtocolSource {
-  async getSteps(): Promise<ProtocolStep[]> {
-    return MOCK_PROTOCOL_STEPS;
+  async getSteps(flowName: string = 'Standard CIBA (OAuth 2.0)'): Promise<ProtocolStep[]> {
+    return MOCK_PROTOCOL_FLOWS[flowName] || MOCK_PROTOCOL_FLOWS['Standard CIBA (OAuth 2.0)'];
+  }
+
+  async getIdState(flowName: string, stepIdx: number, currentStep: ProtocolStep | null): Promise<IdComponent[]> {
+    if (flowName === 'Standard CIBA (OAuth 2.0)') {
+      return [];
+    }
+
+    return [
+      { label: 'Deployer Identifier', value: 'deployer \#101', active: stepIdx >= 2 },
+      { label: 'Deployer Accountability ID', value: 'Jane Doe', active: stepIdx >= 2 },
+      { label: 'Provider Identifier', value: 'provider \#202', active: stepIdx >= 5 },
+      { label: 'Provider Security Evidence', value: 'provider \#202', active: stepIdx >= 5 },
+      { label: 'Prompt Hash', value: '[hash of the prompt]', active: stepIdx >= 2 },
+      { label: 'Foundation Model Identifier', value: 'foundation model name', active: stepIdx >= 4 },
+      { label: 'Foundation Model Safety Evidence', value: 'foundation model safety evidence', active: stepIdx >= 4 },
+      { label: 'Agent Instance Identifier', value: 'agent_instance \#7343', active: stepIdx >= 5 },
+      { label: 'Agent Instance Shutdown Command', value: 'agent_instance_shutdown code: 5559', active: stepIdx >= 5 },
+      { label: 'Policy Rules', value: 'OPA Bounds', active: stepIdx >= 9 },
+      { label: 'OAuth Access Token', value: 'dpop_at_98f2...', active: stepIdx >= 9 },
+    ];
   }
 }
+
