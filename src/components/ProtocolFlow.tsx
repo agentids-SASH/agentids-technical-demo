@@ -28,6 +28,8 @@ export const ProtocolFlow = () => {
     'Who directed the agent?': true,
     'How was the agent built?': true,
     'What to do if problems arise?': true,
+    'Can I trust the agent and the agent ID?': true,
+    'What is the agent authorized to do?': true,
     'Other': true,
   }));
   const flowRef = useRef<HTMLDivElement | null>(null);
@@ -141,11 +143,11 @@ export const ProtocolFlow = () => {
     },
     {
       title: 'How was the agent built?',
-      labels: ['Foundation Model Identifier', 'Provider Identifier'],
+      labels: ['Developer Identifier', 'Provider Identifier', 'Foundation Model Identifier'],
     },
     {
       title: 'What to do if problems arise?',
-      labels: ['Agent Instance Shutdown Command', 'Agent Instance Identifier'],
+      labels: ['Agent Instance Identifier', 'Agent Instance Shutdown Command'],
     },
     {
       title: 'Can I trust the agent and the agent ID?',
@@ -153,7 +155,7 @@ export const ProtocolFlow = () => {
     },
     {
       title: 'What is the agent authorized to do?',
-      labels: ['Policy Rules', 'OAuth Access Token'],
+      labels: ['OAuth Access Token', 'Policy Rules'],
     },
   ], []);
 
@@ -201,26 +203,6 @@ export const ProtocolFlow = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-           {/* Commented out until second view added. */}
-          {/* <div className="flex bg-muted/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm">
-            {Object.keys(MOCK_PROTOCOL_FLOWS).map((flow) => (
-              <button
-                key={flow}
-                onClick={() => setActiveFlow(flow)}
-                className={cn(
-                  "px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2",
-                  activeFlow === flow
-                    ? "bg-background text-primary shadow-lg ring-1 ring-black/5"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <LayoutGrid className={cn("w-3.5 h-3.5", activeFlow === flow ? "text-primary" : "text-muted-foreground/50")} />
-                {flow}
-              </button>
-            ))}
-          </div> */}
-        </div>
       </div>
 
       <div className="flex-1 bg-card border rounded-3xl overflow-hidden shadow-2xl flex flex-col min-h-[1050px] ring-1 ring-white/5">
@@ -299,8 +281,8 @@ export const ProtocolFlow = () => {
                   <div className="mb-2 flex w-full justify-center">
                     <span className="text-center text-[10px] font-black uppercase tracking-[0.35em] text-primary">Protocol Step</span>
                   </div>
-                  <div className="relative flex flex-col items-center gap-4 px-2 py-3">
-                    <div className="absolute left-1/2 top-6 bottom-6 w-px bg-muted/20 -translate-x-1/2" />
+                  <div className="relative flex flex-col items-center gap-2.5 px-2 py-2">
+                    <div className="absolute left-1/2 top-4 bottom-4 w-px bg-muted/20 -translate-x-1/2" />
                     {steps.map((step, idx) => (
                       <button
                         key={step.id}
@@ -308,7 +290,7 @@ export const ProtocolFlow = () => {
                         className="relative z-10 flex items-center justify-center"
                       >
                         <div className={cn(
-                          "w-11 h-11 rounded-[0.85rem] flex items-center justify-center text-[9px] font-black transition-all duration-500 border-[3px] bg-background relative z-10",
+                          "w-8 h-8 rounded-lg flex items-center justify-center text-[9px] font-black transition-all duration-500 border-2 bg-background relative z-10",
                           idx <= currentStepIdx
                             ? "bg-primary border-primary text-primary-foreground shadow-lg scale-110"
                             : "bg-background border-muted text-muted-foreground group-hover:border-primary/40 group-hover:text-primary"
@@ -323,6 +305,24 @@ export const ProtocolFlow = () => {
 
               {/* MAIN STAGE */}
               <div className="relative flex-1 p-8 bg-gradient-to-b from-muted/5 to-transparent overflow-hidden min-h-[680px]" onClick={() => setOpenActor(null)}>
+                {/* Protocol selector */}
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex bg-muted/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm" onClick={e => e.stopPropagation()}>
+                  {Object.keys(MOCK_PROTOCOL_FLOWS).map((flow) => (
+                    <button
+                      key={flow}
+                      onClick={() => setActiveFlow(flow)}
+                      className={cn(
+                        "px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-between gap-3 whitespace-nowrap",
+                        activeFlow === flow
+                          ? "bg-background text-primary shadow-lg ring-1 ring-black/5"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <LayoutGrid className={cn("w-3.5 h-3.5", activeFlow === flow ? "text-primary" : "text-muted-foreground/50")} />
+                      {flow}
+                    </button>
+                  ))}
+                </div>
                 {/* Trust Mesh Background */}
                 <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.18]">
                   {Object.entries(actorCoords).flatMap(([actor, coord]) => {
@@ -370,7 +370,7 @@ export const ProtocolFlow = () => {
 
                 {/* THE ACTORS */}
                 {Object.entries(actorCoords).filter(([actor]) => actor !== 'AGENT' || currentStepIdx >= 1).map(([actor, coord]) => {
-                  const isActive = currentStep.id === 0 || currentStep.sender === actor || currentStep.receiver === actor;
+                  const isActive = (currentStep.id as number) < 0 || currentStep.sender === actor || currentStep.receiver === actor;
                   const isOpen = openActor === actor;
                   return (
                     <div
