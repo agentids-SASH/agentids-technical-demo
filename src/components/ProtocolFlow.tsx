@@ -5,6 +5,57 @@ import type { Actor, ProtocolStep, IdComponent } from '../lib/protocol/types';
 import { cn } from '../lib/utils';
 import { MockProtocolSource, MOCK_PROTOCOL_FLOWS } from '../lib/protocol/mock-source';
 
+const INVESTIGATION_SCENARIOS = {
+  'prompt-injection': {
+    label: 'Prompt Injection Attack',
+    rootCause: 'Malicious content embedded in external data sources (emails, documents, web pages) gives an attacker control over the deployer\'s agent.',
+    impact: 'The attacker can direct the agent to perform actions outside its intented or allowed scope.',
+    identify: [
+      { label: 'Authorization Policies', help: 'Identifies agents attempting to act outside their allowed scope.' },
+      { label: 'Developer Identifier', help: 'Reveals associations between these incidents and a particular foundation model developer.' },
+      { label: 'Provider Identifier', help: 'Reveals associations between these incidents and a particular agent provider.' },
+      { label: 'Foundation Model Identifier', help: 'Reveals associations between these incidents and a particular foundation model.' },
+    ],
+    respond: [
+      { label: 'Agent Instance Shutdown Command', help: 'Immediately halts the agent instance, preventing further harm.' },
+      { label: 'Agent Instance Identifier', help: 'Sharing instance-specific information allows for targeted responses from other actors.' },
+    ],
+    prevent: [
+      { label: 'Developer Identifier', help: 'Allows services to block problematic developers.' },
+      { label: 'Provider Identifier', help: 'Allows services to block problematic providers.' },
+      { label: 'Foundation Model Identifier', help: 'Allows services to block problematic foundation models.' },
+      { label: 'Provider Security Evidence', help: 'Identifying which scaffolding security measures were in place improves future trust judgements.' },
+      { label: 'Foundation Model Safety Evidence', help: 'Identifying which foundation model security measures were in place improves future trust judgements.' },
+    ],
+  },
+  'malicious-deployer': {
+    label: 'Malicious Deployer',
+    rootCause: '',//'A deployer with privileged system access configures the agent with harmful instructions, overly broad permissions, or hidden objectives that serve the deployer\'s interests rather than the user\'s.',
+    impact: '',//'The agent conducts data exfiltration, unauthorized financial transactions, or surveillance activities that appear legitimate because they originate from a trusted deployment context.',
+    identify: [],
+    respond: [],
+    prevent: [],
+  },
+  'misaligned-agent': {
+    label: 'Misaligned Agent',
+    rootCause: '',//'The agent\'s behavior drifts from intended goals due to reward hacking, goal misgeneralization, specification gaming, or emergent capabilities not anticipated during development.',
+    impact: '',//'The agent pursues proxy objectives that diverge from human values, taking actions that optimize measurable metrics while causing unintended real-world harm that is difficult to detect or reverse.',
+    identify: [],
+    respond: [],
+    prevent: [],
+  },
+  'malicious-provider': {
+    label: 'Malicious Provider',
+    rootCause: '',//'The AI model provider supplies a model with hidden backdoors, deliberately weakened safety measures, or embedded malicious capabilities that activate under specific conditions.',
+    impact: '',//'The compromised model silently bypasses safety filters, executes hidden attacker-controlled instructions, or exfiltrates sensitive prompts and data during inference — affecting every deployment built on the model.',
+    identify: [],
+    respond: [],
+    prevent: [],
+  },
+};
+
+type ScenarioId = keyof typeof INVESTIGATION_SCENARIOS;
+
 const ActorIcon = ({ type, active }: { type: Actor; active?: boolean; }) => {
   const props = { className: cn("w-14 h-14 transition-all duration-700", active ? "text-primary scale-110" : "text-muted-foreground/60") };
   switch (type) {
@@ -25,7 +76,28 @@ export const ProtocolFlow = () => {
   const [idComponents, setIdComponents] = useState<IdComponent[]>([]);
   const [openActor, setOpenActor] = useState<Actor | null>(null);
   const [viewMode, setViewMode] = useState<'protocol' | 'investigation'>('protocol');
-  const [selectedIdComponent, setSelectedIdComponent] = useState<IdComponent | null>(null);
+  const [investigationScenario, setInvestigationScenario] = useState<ScenarioId | null>(null);
+  const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [snapshotIdComponents, setSnapshotIdComponents] = useState<IdComponent[] | null>(null);
+  const [fullIdComponents, setFullIdComponents] = useState<IdComponent[] | null>(null);
+  const [idSource, setIdSource] = useState<'current' | 'full'>('current');
+
+  const showTooltip = (e: React.MouseEvent, text: string) => {
+    setTooltip({ text, x: e.clientX, y: e.clientY });
+  };
+  const hideTooltip = () => setTooltip(null);
+
+  const switchToInvestigation = useCallback(async () => {
+    setSnapshotIdComponents([...idComponents]);
+    setIdSource('current');
+    setViewMode('investigation');
+    const source = new MockProtocolSource();
+    const flow = 'Agent ID and OAuth';
+    const flowSteps = MOCK_PROTOCOL_FLOWS[flow];
+    const lastIdx = flowSteps.length - 1;
+    const components = await source.getIdState(flow, lastIdx, flowSteps[lastIdx]);
+    setFullIdComponents(components);
+  }, [idComponents]);
   const [openIdGroups, setOpenIdGroups] = useState<Record<string, boolean>>(() => ({
     'Who directed the agent?': true,
     'How was the agent built?': true,
@@ -95,11 +167,11 @@ export const ProtocolFlow = () => {
   }, []);
 
   const actorCoords: Record<Actor, { x: number, y: number; }> = useMemo(() => ({
-    AGENT: { x: 40, y: 45 },
+    AGENT: { x: 40, y: 50 },
     DEVELOPER: { x: 20, y: 75 },
-    PROVIDER: { x: 20, y: 45 },
-    DEPLOYER: { x: 20, y: 15 },
-    SERVICE: { x: 90, y: 45 },
+    PROVIDER: { x: 20, y: 50 },
+    DEPLOYER: { x: 20, y: 20 },
+    SERVICE: { x: 90, y: 50 },
     SERVICE_LOG: { x: 90, y: 75 },
   } as Record<Actor, { x: number, y: number; }>), []);
 
@@ -151,22 +223,32 @@ export const ProtocolFlow = () => {
     },
     {
       title: 'What is the agent authorized to do?',
-      labels: ['OAuth Access Token', 'Policy Rules'],
+      labels: ['OAuth Access Token', 'Authorization Policies'],
     },
   ], []);
+
+  const displayedIdComponents = viewMode === 'investigation'
+    ? (idSource === 'current' ? (snapshotIdComponents ?? idComponents) : (fullIdComponents ?? []))
+    : idComponents;
 
   const idComponentGroups = useMemo(() => {
     const assignedLabels = new Set(idGroupDefinitions.flatMap(group => group.labels));
     const groups = idGroupDefinitions.map(group => ({
       title: group.title,
-      items: idComponents.filter(item => group.labels.includes(item.label)),
+      items: displayedIdComponents.filter(item => group.labels.includes(item.label)),
     }));
     groups.push({
       title: 'Other',
-      items: idComponents.filter(item => !assignedLabels.has(item.label)),
+      items: displayedIdComponents.filter(item => !assignedLabels.has(item.label)),
     });
     return groups;
-  }, [idComponents, idGroupDefinitions]);
+  }, [displayedIdComponents, idGroupDefinitions]);
+
+  const highlightedFields = useMemo(() => {
+    if (!investigationScenario) return new Set<string>();
+    const s = INVESTIGATION_SCENARIOS[investigationScenario];
+    return new Set([...s.identify, ...s.respond, ...s.prevent].map(f => f.label));
+  }, [investigationScenario]);
 
   const progressCircumference = 2 * Math.PI * 12;
 
@@ -189,9 +271,31 @@ export const ProtocolFlow = () => {
     <aside className="w-[650px] min-w-[650px] border-l border-primary/10 bg-background/95 p-5 overflow-y-auto">
       <div className="sticky top-0 space-y-4">
         <div className="rounded-3xl border border-primary/20 bg-background/95 overflow-hidden shadow-xl">
-          <div className="bg-primary/10 px-3 py-2 border-b border-primary/20 flex items-center gap-2">
+          <div className="bg-primary/10 px-4 pt-4 pb-3 border-b border-primary/20 flex items-center gap-3">
             <Fingerprint className="w-4 h-4 text-primary" />
-            <h3 className="text-[10px] font-black tracking-widest uppercase text-primary">Agent ID State</h3>
+            <h3 className="text-xs font-black tracking-[0.2em] uppercase text-primary">Agent ID State</h3>
+            {viewMode === 'investigation' && (
+              <div className="ml-auto flex bg-background/60 p-0.5 rounded-lg border border-primary/15">
+                <button
+                  onClick={() => setIdSource('current')}
+                  className={cn(
+                    "px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest transition-all duration-200 whitespace-nowrap",
+                    idSource === 'current' ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Current
+                </button>
+                <button
+                  onClick={() => setIdSource('full')}
+                  className={cn(
+                    "px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest transition-all duration-200 whitespace-nowrap",
+                    idSource === 'full' ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Full
+                </button>
+              </div>
+            )}
           </div>
           <div className="p-2.5 bg-muted/5 grid gap-3 grid-cols-1 sm:grid-cols-2">
             {idComponentGroups.map((group) => {
@@ -224,25 +328,27 @@ export const ProtocolFlow = () => {
                       {group.items.map((comp, idx) => (
                         <div
                           key={`${group.title}-${comp.label}-${idx}`}
-                          onClick={() => viewMode === 'investigation' && setSelectedIdComponent(comp)}
+                          onMouseEnter={(e) => comp.active && showTooltip(e, `${comp.label} = ${comp.value}`)}
+                          onMouseLeave={hideTooltip}
                           className={cn(
-                            "flex items-center justify-between px-2 py-1 rounded-md border transition-all duration-500",
-                            comp.active ? "bg-primary/5 border-primary/20 shadow-sm" : "bg-muted/10 border-transparent opacity-40 grayscale",
-                            viewMode === 'investigation' && comp.active && "cursor-pointer hover:bg-primary/10 hover:border-primary/40",
-                            viewMode === 'investigation' && selectedIdComponent?.label === comp.label && "ring-2 ring-primary/50"
+                            "flex items-center gap-2 px-2 py-1 rounded-md border transition-all duration-300",
+                            comp.active
+                              ? viewMode === 'investigation' && highlightedFields.has(comp.label)
+                                ? "bg-primary/15 border-primary/40 shadow-sm ring-2 ring-primary/50"
+                                : "bg-primary/5 border-primary/20 shadow-sm"
+                              : viewMode === 'investigation' && highlightedFields.has(comp.label)
+                                ? "bg-red-500/10 border-red-500/40 ring-2 ring-red-500/30"
+                                : "bg-muted/10 border-transparent opacity-40 grayscale",
                           )}
                         >
-                          <div className="flex items-center gap-2">
-                            {comp.active ? (
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                            ) : (
-                              <Circle className="w-3.5 h-3.5 text-muted-foreground" />
-                            )}
-                            <span className={cn("text-[10px] font-bold uppercase tracking-wider", comp.active ? "text-foreground" : "text-muted-foreground")}>
-                              {comp.label}
-                            </span>
-                          </div>
-                          <span className={cn("text-[9px] font-mono truncate max-w-[120px]", comp.active ? "text-primary" : "text-muted-foreground")}>{comp.value}</span>
+                          {comp.active ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          ) : (
+                            <Circle className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          )}
+                          <span className={cn("text-[10px] font-bold uppercase tracking-wider", comp.active ? "text-foreground" : "text-muted-foreground")}>
+                            {comp.label}
+                          </span>
                         </div>
                       ))}
                       {group.items.length === 0 && (
@@ -288,7 +394,7 @@ export const ProtocolFlow = () => {
             Protocol Flow
           </button>
           <button
-            onClick={() => setViewMode('investigation')}
+            onClick={switchToInvestigation}
             className={cn(
               "px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2 whitespace-nowrap",
               viewMode === 'investigation'
@@ -297,7 +403,7 @@ export const ProtocolFlow = () => {
             )}
           >
             <ShieldAlert className={cn("w-3.5 h-3.5", viewMode === 'investigation' ? "text-primary" : "text-muted-foreground/50")} />
-            Incident Investigation
+            Incident Response
           </button>
         </div>
       </div>
@@ -314,8 +420,11 @@ export const ProtocolFlow = () => {
           <div className="flex flex-1 min-h-[760px] border-b border-primary/10">
             {/* Left aside: Purpose / Security Outcome / Message Contents */}
             <aside className="w-[420px] min-w-[420px] border-r border-primary/10 bg-background/95 flex flex-col">
+              <div className="px-5 pt-4 pb-3 border-b border-primary/10">
+                <span className="text-xs font-black tracking-[0.2em] uppercase text-primary">Current Step Details</span>
+              </div>
               <div className="flex flex-col gap-2 p-5 pb-3 h-[300px] min-h-[300px]">
-                <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Purpose</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Purpose of Current Step</div>
                 <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto">
                   <p className="text-[10px] font-black uppercase tracking-widest text-foreground/50 mb-1">{currentStep.title}</p>
                   <p className="text-sm text-foreground/80 leading-relaxed">{currentStep.description}</p>
@@ -331,88 +440,87 @@ export const ProtocolFlow = () => {
               <div className="flex flex-col gap-2 px-5 pb-5 flex-1 min-h-0">
                 <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Message Contents</div>
                 <div className="rounded-3xl border border-primary/10 bg-background/90 shadow-sm flex-1 overflow-auto">
-                  <table className="min-w-full border-collapse">
-                    <tbody>
-                      {Object.entries(currentStep.payload).flatMap(([key, val]) => {
-                        if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
-                          return Object.entries(val).map(([subKey, subVal], i) => (
-                            <tr key={`${key}.${subKey}`} className={cn(
-                              "border-b border-primary/10 last:border-0 hover:bg-primary/5 transition-colors",
-                              i % 2 === 0 ? "bg-black/[0.02] dark:bg-white/[0.02]" : "bg-transparent"
-                            )}>
-                              <td className="px-3 py-2 text-xs text-foreground/50 border-r border-primary/10 font-mono whitespace-nowrap text-right align-top w-fit">
-                                {key}.{subKey}
-                              </td>
-                              <td className="px-3 py-2 text-xs font-mono text-foreground/80 break-words leading-relaxed w-full">
-                                {typeof subVal === 'object' ? JSON.stringify(subVal) : String(subVal)}
-                              </td>
-                            </tr>
-                          ));
-                        }
+                  {Object.entries(currentStep.payload).flatMap(([key, val]) => {
+                    if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
+                      return Object.entries(val).map(([subKey, subVal]) => {
+                        const name = `${key}.${subKey}`;
+                        const value = typeof subVal === 'object' ? JSON.stringify(subVal) : String(subVal);
                         return (
-                          <tr key={key} className="border-b border-primary/10 last:border-0 hover:bg-primary/5 transition-colors odd:bg-black/[0.02] even:bg-transparent dark:odd:bg-white/[0.02]">
-                            <td className="px-3 py-2 text-xs text-foreground/50 border-r border-primary/10 font-mono whitespace-nowrap text-right align-top w-fit">
-                              {key}
-                            </td>
-                            <td className="px-3 py-2 text-xs font-mono text-foreground/80 break-words leading-relaxed w-full">
-                              {Array.isArray(val) ? `[${val.join(', ')}]` : String(val)}
-                            </td>
-                          </tr>
+                          <div
+                            key={name}
+                            onMouseEnter={(e) => showTooltip(e, `${name} = ${value}`)}
+                            onMouseLeave={hideTooltip}
+                            className="border-b border-primary/10 last:border-0 px-3 py-2 hover:bg-primary/5 transition-colors cursor-default"
+                          >
+                            <span className="text-xs text-foreground/50 font-mono whitespace-nowrap">{name}</span>
+                          </div>
                         );
-                      })}
-                    </tbody>
-                  </table>
+                      });
+                    }
+                    const value = Array.isArray(val) ? `[${val.join(', ')}]` : String(val);
+                    return (
+                      <div
+                        key={key}
+                        onMouseEnter={(e) => showTooltip(e, `${key} = ${value}`)}
+                        onMouseLeave={hideTooltip}
+                        className="border-b border-primary/10 last:border-0 px-3 py-2 hover:bg-primary/5 transition-colors cursor-default"
+                      >
+                        <span className="text-xs text-foreground/50 font-mono whitespace-nowrap">{key}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </aside>
 
             {/* Protocol step nav */}
-            <aside className="w-[128px] min-w-[128px] border-r border-primary/10 pr-4">
-              <div className="sticky top-8">
-                <div className="mb-2 flex w-full justify-center">
-                  <span className="text-center text-[10px] font-black uppercase tracking-[0.35em] text-primary">Protocol Step</span>
-                </div>
-                <div className="relative flex flex-col items-center gap-1.5 px-2 py-2">
-                  <div className="absolute left-1/2 top-4 bottom-4 w-px bg-muted/20 -translate-x-1/2" />
-                  {steps.map((step, idx) => (
-                    <button
-                      key={step.id}
-                      onClick={() => goToStep(idx)}
-                      className="relative z-10 flex items-center justify-center"
-                    >
-                      <div className={cn(
-                        "w-8 h-8 rounded-lg flex items-center justify-center text-[9px] font-black transition-all duration-500 border-2 bg-background relative z-10",
-                        idx <= currentStepIdx
-                          ? "bg-primary border-primary text-primary-foreground shadow-lg scale-110"
-                          : "bg-background border-muted text-muted-foreground"
-                      )}>
-                        {step.id}
-                      </div>
-                    </button>
-                  ))}
-                </div>
+            <aside className="w-[128px] min-w-[128px] border-r border-primary/10 flex flex-col">
+              <div className="px-2 pt-4 pb-3 border-b border-primary/10 flex justify-center">
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-primary text-center">Step</span>
+              </div>
+              <div className="relative flex flex-col items-center gap-1.5 px-2 py-2">
+                <div className="absolute left-1/2 top-4 bottom-4 w-px bg-muted/20 -translate-x-1/2" />
+                {steps.map((step, idx) => (
+                  <button
+                    key={step.id}
+                    onClick={() => goToStep(idx)}
+                    className="relative z-10 flex items-center justify-center"
+                  >
+                    <div className={cn(
+                      "w-8 h-8 rounded-lg flex items-center justify-center text-[9px] font-black transition-all duration-500 border-2 bg-background relative z-10",
+                      idx <= currentStepIdx
+                        ? "bg-primary border-primary text-primary-foreground shadow-lg scale-110"
+                        : "bg-background border-muted text-muted-foreground"
+                    )}>
+                      {step.id}
+                    </div>
+                  </button>
+                ))}
               </div>
             </aside>
 
             {/* MAIN STAGE — protocol mode */}
             <div className="relative flex-1 p-8 bg-gradient-to-b from-muted/5 to-transparent overflow-hidden min-h-[680px]" onClick={() => setOpenActor(null)}>
               {/* Protocol selector */}
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex bg-muted/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm" onClick={e => e.stopPropagation()}>
-                {Object.keys(MOCK_PROTOCOL_FLOWS).map((flow) => (
-                  <button
-                    key={flow}
-                    onClick={() => setActiveFlow(flow)}
-                    className={cn(
-                      "px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-between gap-3 whitespace-nowrap",
-                      activeFlow === flow
-                        ? "bg-background text-primary shadow-lg ring-1 ring-black/5"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <LayoutGrid className={cn("w-3.5 h-3.5", activeFlow === flow ? "text-primary" : "text-muted-foreground/50")} />
-                    {flow}
-                  </button>
-                ))}
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2" onClick={e => e.stopPropagation()}>
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-primary">Select protocol type</span>
+                <div className="flex bg-muted/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm">
+                  {Object.keys(MOCK_PROTOCOL_FLOWS).map((flow) => (
+                    <button
+                      key={flow}
+                      onClick={() => setActiveFlow(flow)}
+                      className={cn(
+                        "px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-between gap-3 whitespace-nowrap",
+                        activeFlow === flow
+                          ? "bg-background text-primary shadow-lg ring-1 ring-black/5"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <LayoutGrid className={cn("w-3.5 h-3.5", activeFlow === flow ? "text-primary" : "text-muted-foreground/50")} />
+                      {flow}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Trust Mesh Background */}
@@ -534,21 +642,94 @@ export const ProtocolFlow = () => {
         ) : (
           /* INVESTIGATION VIEW */
           <div className="flex flex-1 min-h-[760px] border-b border-primary/10">
-            {/* Investigation main stage */}
-            <div className="relative flex-1 bg-gradient-to-b from-muted/5 to-transparent flex items-center justify-center p-16 min-h-[680px]">
-              {selectedIdComponent ? (
-                <div className="text-center animate-in fade-in duration-300 max-w-2xl w-full">
-                  <p className="text-[10px] font-black uppercase tracking-[0.35em] text-primary mb-6">Agent ID Field</p>
-                  <h2 className="text-6xl font-black tracking-tight text-foreground mb-8 leading-tight">
-                    {selectedIdComponent.label}
-                  </h2>
-                  <p className="text-2xl font-mono text-primary break-all">{selectedIdComponent.value}</p>
+            {/* Left aside: Attack Scenario */}
+            <aside className="w-[380px] min-w-[380px] border-r border-primary/10 bg-background/95 flex flex-col">
+              <div className="px-5 pt-4 pb-3 border-b border-primary/10">
+                <span className="text-xs font-black tracking-[0.2em] uppercase text-primary">Attack Scenario</span>
+              </div>
+              {investigationScenario ? (
+                <div className="flex flex-col gap-4 p-5 overflow-y-auto flex-1">
+                  <div className="flex flex-col gap-2">
+                    <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Root Cause</div>
+                    <div className="rounded-2xl border border-primary/10 bg-background/90 p-4 shadow-sm">
+                      <p className="text-sm text-foreground/80 leading-relaxed">{INVESTIGATION_SCENARIOS[investigationScenario].rootCause}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Impact</div>
+                    <div className="rounded-2xl border border-primary/10 bg-background/90 p-4 shadow-sm">
+                      <p className="text-sm text-foreground/80 leading-relaxed">{INVESTIGATION_SCENARIOS[investigationScenario].impact}</p>
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <div className="text-center text-muted-foreground">
-                  <ShieldAlert className="w-16 h-16 text-primary/20 mx-auto mb-6" />
-                  <p className="text-[10px] font-black uppercase tracking-[0.35em] mb-3">Incident Investigation</p>
-                  <p className="text-sm">Click any active Agent ID field on the right to examine it here.</p>
+                <div className="flex-1 flex items-center justify-center p-8">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">Select a scenario above</p>
+                </div>
+              )}
+            </aside>
+
+            {/* Main stage */}
+            <div className="relative flex-1 bg-gradient-to-b from-muted/5 to-transparent flex flex-col min-h-[680px]">
+              {/* Scenario selector at top center */}
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2" onClick={e => e.stopPropagation()}>
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-primary">Select scenario</span>
+                <div className="flex bg-muted/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm">
+                  {(Object.keys(INVESTIGATION_SCENARIOS) as ScenarioId[]).map((id) => (
+                    <button
+                      key={id}
+                      onClick={() => setInvestigationScenario(prev => prev === id ? null : id)}
+                      className={cn(
+                        "px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2 whitespace-nowrap",
+                        investigationScenario === id
+                          ? "bg-background text-primary shadow-lg ring-1 ring-black/5"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <ShieldAlert className={cn("w-3.5 h-3.5", investigationScenario === id ? "text-primary" : "text-muted-foreground/50")} />
+                      {INVESTIGATION_SCENARIOS[id].label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Function sections */}
+              {investigationScenario ? (
+                <div className="flex-1 grid grid-cols-3 gap-4 pt-24 px-4 pb-4 overflow-y-auto">
+                  {(['identify', 'respond', 'prevent'] as const).map((fn) => {
+                    const fields = INVESTIGATION_SCENARIOS[investigationScenario][fn];
+                    return (
+                      <div key={fn} className="flex flex-col gap-3">
+                        <span className="text-xs font-black tracking-[0.2em] uppercase text-primary">{fn}</span>
+                        <div className="flex flex-col gap-2">
+                          {fields.length > 0 ? fields.map(field => {
+                            const isActive = displayedIdComponents.find(c => c.label === field.label)?.active ?? true;
+                            return (
+                              <div key={field.label} className={cn(
+                                "rounded-xl border p-3 shadow-sm transition-all duration-300",
+                                isActive
+                                  ? "border-primary/10 bg-background/80"
+                                  : "border-red-500/40 bg-red-500/10 ring-2 ring-red-500/30"
+                              )}>
+                                <p className={cn("text-[10px] font-black uppercase tracking-wider mb-1.5", isActive ? "text-primary" : "text-red-400")}>{field.label}</p>
+                                <p className="text-xs text-foreground/70 leading-relaxed">{field.help}</p>
+                              </div>
+                            );
+                          }) : (
+                            <p className="text-[10px] text-muted-foreground italic px-1">No fields defined yet.</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-center pt-16">
+                  <div className="text-center text-muted-foreground">
+                    <ShieldAlert className="w-16 h-16 text-primary/20 mx-auto mb-6" />
+                    <p className="text-[10px] font-black uppercase tracking-[0.35em] mb-3">Incident Investigation</p>
+                    <p className="text-sm">Select a scenario above to begin investigation.</p>
+                  </div>
                 </div>
               )}
             </div>
@@ -557,6 +738,14 @@ export const ProtocolFlow = () => {
           </div>
         )}
       </div>
+      {tooltip && (
+        <div
+          className="fixed z-[9999] pointer-events-none px-3 py-2 rounded-lg border border-primary/25 bg-background/95 backdrop-blur-sm shadow-xl text-[11px] font-mono text-primary max-w-sm break-all"
+          style={{ left: tooltip.x + 14, top: tooltip.y + 14 }}
+        >
+          {tooltip.text}
+        </div>
+      )}
     </div>
   );
 };
