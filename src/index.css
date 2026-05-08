@@ -223,37 +223,57 @@ code {
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* ── PALETTE KNOBS ────────────────────────────────────────────────────
+     Adjust these six values to retheme the entire UI.
+     ──────────────────────────────────────────────────────────────────── */
+  --p-hue: 235;         /* base hue for backgrounds (0=red 120=green 240=blue) */
+  --p-bg-l: 0.09;       /* base background lightness — lower = darker          */
+  --p-bg-chroma: 0.018; /* background color tint — 0 = pure gray               */
+  --p-accent-hue: 235;  /* accent hue (can differ from background hue)         */
+  --p-accent-l: 0.68;   /* accent lightness (0–1)                              */
+  --p-accent-c: 0.20;   /* accent chroma / saturation (0 = gray, 0.4 = vivid)  */
+
+  /* ── DERIVED PALETTE (computed from knobs above) */
+  --p-bg-deep:     oklch(var(--p-bg-l) var(--p-bg-chroma) var(--p-hue));
+  --p-bg-surface:  oklch(calc(var(--p-bg-l) + 0.05) var(--p-bg-chroma) var(--p-hue));
+  --p-bg-elevated: oklch(calc(var(--p-bg-l) + 0.10) var(--p-bg-chroma) var(--p-hue));
+  --p-text:        oklch(0.92 0.008 var(--p-hue));
+  --p-text-muted:  oklch(0.55 0.020 var(--p-hue));
+  --p-accent:      oklch(var(--p-accent-l) var(--p-accent-c) var(--p-accent-hue));
+  --p-border:      oklch(calc(var(--p-bg-l) + 0.19) var(--p-bg-chroma) var(--p-hue));
+
+  /* ── SHADCN TOKEN MAPPING */
+  --background:              var(--p-bg-deep);
+  --foreground:              var(--p-text);
+  --card:                    var(--p-bg-surface);
+  --card-foreground:         var(--p-text);
+  --popover:                 var(--p-bg-surface);
+  --popover-foreground:      var(--p-text);
+  --primary:                 var(--p-accent);
+  --primary-foreground:      var(--p-bg-deep);
+  --secondary:               var(--p-bg-elevated);
+  --secondary-foreground:    var(--p-text);
+  --muted:                   var(--p-bg-elevated);
+  --muted-foreground:        var(--p-text-muted);
+  --accent:                  var(--p-bg-elevated);
+  --accent-foreground:       var(--p-text);
+  --destructive:             oklch(0.65 0.22 25);
+  --border:                  var(--p-border);
+  --input:                   var(--p-border);
+  --ring:                    var(--p-accent);
+  --chart-1:                 var(--p-accent);
+  --chart-2:                 oklch(0.65 0.18 155);
+  --chart-3:                 oklch(0.65 0.18 300);
+  --chart-4:                 oklch(0.65 0.18 40);
+  --chart-5:                 oklch(0.65 0.18 200);
+  --sidebar:                 var(--p-bg-surface);
+  --sidebar-foreground:      var(--p-text);
+  --sidebar-primary:         var(--p-accent);
+  --sidebar-primary-foreground: var(--p-bg-deep);
+  --sidebar-accent:          var(--p-bg-elevated);
+  --sidebar-accent-foreground: var(--p-text);
+  --sidebar-border:          var(--p-border);
+  --sidebar-ring:            var(--p-accent);
 }
 
 @layer base {

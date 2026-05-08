@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
-import { User, Server, Activity, Bot, Database , Code, Fingerprint, CheckCircle2, Circle, LayoutGrid, ChevronDown, Wrench } from 'lucide-react';
+import { User, Server, Activity, Bot, Database , Code, Fingerprint, CheckCircle2, Circle, LayoutGrid, ChevronDown, Wrench, ShieldAlert, Network } from 'lucide-react';
 import { ACTORS } from '../lib/protocol/actors';
 import type { Actor, ProtocolStep, IdComponent } from '../lib/protocol/types';
 import { cn } from '../lib/utils';
@@ -24,6 +24,8 @@ export const ProtocolFlow = () => {
   const [activeFlow, setActiveFlow] = useState<string>(Object.keys(MOCK_PROTOCOL_FLOWS)[0]);
   const [idComponents, setIdComponents] = useState<IdComponent[]>([]);
   const [openActor, setOpenActor] = useState<Actor | null>(null);
+  const [viewMode, setViewMode] = useState<'protocol' | 'investigation'>('protocol');
+  const [selectedIdComponent, setSelectedIdComponent] = useState<IdComponent | null>(null);
   const [openIdGroups, setOpenIdGroups] = useState<Record<string, boolean>>(() => ({
     'Who directed the agent?': true,
     'How was the agent built?': true,
@@ -39,7 +41,6 @@ export const ProtocolFlow = () => {
       const source = new MockProtocolSource();
       const mockSteps = await source.getSteps(activeFlow);
       setSteps(mockSteps);
-      // We keep currentStepIdx the same, but ensure it's within bounds
       setCurrentStepIdx(prev => Math.min(prev, mockSteps.length - 1));
     };
     loadSteps();
@@ -76,13 +77,9 @@ export const ProtocolFlow = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') {
-        nextStep();
-      } else if (e.key === 'ArrowLeft') {
-        prevStep();
-      }
+      if (e.key === 'ArrowRight') nextStep();
+      else if (e.key === 'ArrowLeft') prevStep();
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [nextStep, prevStep]);
@@ -93,7 +90,6 @@ export const ProtocolFlow = () => {
         setOpenActor(null);
       }
     };
-
     document.addEventListener('mousedown', handleDocumentClick);
     return () => document.removeEventListener('mousedown', handleDocumentClick);
   }, []);
@@ -182,19 +178,93 @@ export const ProtocolFlow = () => {
   };
 
   const getProgressColor = (ratio: number) => {
-    if (ratio <= 0) return '#7f1d1d';
-    if (ratio >= 1) return '#166534';
-    const hue = 0 + ratio * 120;
-    const lightness = 30 + ratio * 25;
-    return `hsl(${hue}, 90%, ${lightness}%)`;
+    if (ratio <= 0) return '#f87171';
+    if (ratio >= 1) return '#4ade80';
+    const hue = ratio * 120;
+    const lightness = 55 + ratio * 15;
+    return `hsl(${hue}, 85%, ${lightness}%)`;
   };
+
+  const agentIdPanel = (
+    <aside className="w-[650px] min-w-[650px] border-l border-primary/10 bg-background/95 p-5 overflow-y-auto">
+      <div className="sticky top-0 space-y-4">
+        <div className="rounded-3xl border border-primary/20 bg-background/95 overflow-hidden shadow-xl">
+          <div className="bg-primary/10 px-3 py-2 border-b border-primary/20 flex items-center gap-2">
+            <Fingerprint className="w-4 h-4 text-primary" />
+            <h3 className="text-[10px] font-black tracking-widest uppercase text-primary">Agent ID State</h3>
+          </div>
+          <div className="p-2.5 bg-muted/5 grid gap-3 grid-cols-1 sm:grid-cols-2">
+            {idComponentGroups.map((group) => {
+              const isOpen = openIdGroups[group.title];
+              return (
+                <div key={group.title} className="rounded-3xl border border-primary/10 bg-background/80 overflow-hidden shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setOpenIdGroups(prev => ({ ...prev, [group.title]: !prev[group.title] }))}
+                    className="w-full flex items-center justify-between gap-3 px-3 py-3 text-left text-[11px] font-black uppercase tracking-[0.2em] text-primary bg-primary/5 hover:bg-primary/10 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <svg className="w-9 h-9" viewBox="0 0 32 32" aria-hidden="true">
+                        <circle cx="16" cy="16" r="12" fill="none" stroke="rgba(148, 163, 184, 0.18)" strokeWidth="6" />
+                        <circle
+                          cx="16" cy="16" r="12" fill="none"
+                          stroke={getProgressColor(getGroupProgress(group))}
+                          strokeWidth="6" strokeLinecap="round"
+                          strokeDasharray={progressCircumference}
+                          strokeDashoffset={progressCircumference * (1 - getGroupProgress(group))}
+                          transform="rotate(-90 16 16)"
+                        />
+                      </svg>
+                      <span>{group.title}</span>
+                    </div>
+                    <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isOpen ? "rotate-180" : "rotate-0")} />
+                  </button>
+                  {isOpen && (
+                    <div className="space-y-2 px-3 pb-3 pt-1">
+                      {group.items.map((comp, idx) => (
+                        <div
+                          key={`${group.title}-${comp.label}-${idx}`}
+                          onClick={() => viewMode === 'investigation' && setSelectedIdComponent(comp)}
+                          className={cn(
+                            "flex items-center justify-between px-2 py-1 rounded-md border transition-all duration-500",
+                            comp.active ? "bg-primary/5 border-primary/20 shadow-sm" : "bg-muted/10 border-transparent opacity-40 grayscale",
+                            viewMode === 'investigation' && comp.active && "cursor-pointer hover:bg-primary/10 hover:border-primary/40",
+                            viewMode === 'investigation' && selectedIdComponent?.label === comp.label && "ring-2 ring-primary/50"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            {comp.active ? (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                            ) : (
+                              <Circle className="w-3.5 h-3.5 text-muted-foreground" />
+                            )}
+                            <span className={cn("text-[10px] font-bold uppercase tracking-wider", comp.active ? "text-foreground" : "text-muted-foreground")}>
+                              {comp.label}
+                            </span>
+                          </div>
+                          <span className={cn("text-[9px] font-mono truncate max-w-[120px]", comp.active ? "text-primary" : "text-muted-foreground")}>{comp.value}</span>
+                        </div>
+                      ))}
+                      {group.items.length === 0 && (
+                        <div className="px-2 py-2 text-[10px] text-muted-foreground italic">No items in this group.</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
 
   return (
     <div ref={flowRef} className="flex flex-col h-full max-w-[2200px] mx-auto p-6 gap-6">
-      {/* Header: Consolidated Single-Line */}
+      {/* Header */}
       <div className="flex items-center justify-between px-6 mb-2">
         <div className="flex items-baseline gap-4">
-          <h1 className="text-3xl font-black tracking-tighter !text-slate-900 dark:!text-slate-50 italic leading-none">
+          <h1 className="text-3xl font-black tracking-tighter text-foreground italic leading-none">
             AI AGENT ID TESTBED
           </h1>
           <div className="flex items-center gap-2 border-l pl-4 border-border h-4">
@@ -203,6 +273,33 @@ export const ProtocolFlow = () => {
           </div>
         </div>
 
+        {/* View mode toggle */}
+        <div className="flex bg-muted/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm">
+          <button
+            onClick={() => setViewMode('protocol')}
+            className={cn(
+              "px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2 whitespace-nowrap",
+              viewMode === 'protocol'
+                ? "bg-background text-primary shadow-lg ring-1 ring-black/5"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Network className={cn("w-3.5 h-3.5", viewMode === 'protocol' ? "text-primary" : "text-muted-foreground/50")} />
+            Protocol Flow
+          </button>
+          <button
+            onClick={() => setViewMode('investigation')}
+            className={cn(
+              "px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2 whitespace-nowrap",
+              viewMode === 'investigation'
+                ? "bg-background text-primary shadow-lg ring-1 ring-black/5"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <ShieldAlert className={cn("w-3.5 h-3.5", viewMode === 'investigation' ? "text-primary" : "text-muted-foreground/50")} />
+            Incident Investigation
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 bg-card border rounded-3xl overflow-hidden shadow-2xl flex flex-col min-h-[1050px] ring-1 ring-white/5">
@@ -210,321 +307,254 @@ export const ProtocolFlow = () => {
           <div className="flex-1 flex items-center justify-center text-muted-foreground animate-pulse">
             <div className="flex flex-col items-center gap-4">
               <Activity className="w-12 h-12 text-primary/20" />
-              <p className="font-black tracking-widest uppercase text-xs">
-                Loading protocol...
-              </p>
+              <p className="font-black tracking-widest uppercase text-xs">Loading protocol...</p>
             </div>
           </div>
-        ) : (
-          <>
-            <div className="flex flex-1 min-h-[760px] border-b border-primary/10">
-              <aside className="w-[420px] min-w-[420px] border-r border-primary/10 bg-background/95 flex flex-col">
-                {/* Purpose */}
-                <div className="flex flex-col gap-2 p-5 pb-3 h-[300px] min-h-[300px]">
-                  <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Purpose</div>
-                  <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-foreground/50 mb-1">{currentStep.title}</p>
-                    <p className="text-sm text-foreground/80 leading-relaxed">{currentStep.description}</p>
-                  </div>
+        ) : viewMode === 'protocol' ? (
+          <div className="flex flex-1 min-h-[760px] border-b border-primary/10">
+            {/* Left aside: Purpose / Security Outcome / Message Contents */}
+            <aside className="w-[420px] min-w-[420px] border-r border-primary/10 bg-background/95 flex flex-col">
+              <div className="flex flex-col gap-2 p-5 pb-3 h-[300px] min-h-[300px]">
+                <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Purpose</div>
+                <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-foreground/50 mb-1">{currentStep.title}</p>
+                  <p className="text-sm text-foreground/80 leading-relaxed">{currentStep.description}</p>
                 </div>
-
-                {/* Security Outcome */}
-                <div className="flex flex-col gap-2 px-5 pb-3 h-[220px] min-h-[220px]">
-                  <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Security Outcome</div>
-                  <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto">
-                     <p className="text-[10px] font-black uppercase tracking-widest text-foreground/50 mb-1">{currentStep.accomplishment_title}</p>
-                    <p className="text-sm text-foreground/80 leading-relaxed">{currentStep.accomplishment}</p>
-                  </div>
+              </div>
+              <div className="flex flex-col gap-2 px-5 pb-3 h-[220px] min-h-[220px]">
+                <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Security Outcome</div>
+                <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-foreground/50 mb-1">{currentStep.accomplishment_title}</p>
+                  <p className="text-sm text-foreground/80 leading-relaxed">{currentStep.accomplishment}</p>
                 </div>
-
-                {/* Message Contents */}
-                <div className="flex flex-col gap-2 px-5 pb-5 flex-1 min-h-0">
-                  <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Message Contents</div>
-                  <div className="rounded-3xl border border-primary/10 bg-background/90 shadow-sm flex-1 overflow-auto">
-                    <table className="min-w-full border-collapse">
-                      <tbody>
-                        {Object.entries(currentStep.payload).flatMap(([key, val]) => {
-                          if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
-                            return Object.entries(val).map(([subKey, subVal], i) => (
-                              <tr key={`${key}.${subKey}`} className={cn(
-                                "border-b border-primary/10 last:border-0 hover:bg-primary/5 transition-colors",
-                                i % 2 === 0 ? "bg-black/[0.02] dark:bg-white/[0.02]" : "bg-transparent"
-                              )}>
-                                <td className="px-3 py-2 text-xs text-foreground/50 border-r border-primary/10 font-mono whitespace-nowrap text-right align-top w-fit">
-                                  {key}.{subKey}
-                                </td>
-                                <td className="px-3 py-2 text-xs font-mono text-foreground/80 break-words leading-relaxed w-full">
-                                  {typeof subVal === 'object' ? JSON.stringify(subVal) : String(subVal)}
-                                </td>
-                              </tr>
-                            ));
-                          }
-                          return (
-                            <tr key={key} className="border-b border-primary/10 last:border-0 hover:bg-primary/5 transition-colors odd:bg-black/[0.02] even:bg-transparent dark:odd:bg-white/[0.02]">
+              </div>
+              <div className="flex flex-col gap-2 px-5 pb-5 flex-1 min-h-0">
+                <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Message Contents</div>
+                <div className="rounded-3xl border border-primary/10 bg-background/90 shadow-sm flex-1 overflow-auto">
+                  <table className="min-w-full border-collapse">
+                    <tbody>
+                      {Object.entries(currentStep.payload).flatMap(([key, val]) => {
+                        if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
+                          return Object.entries(val).map(([subKey, subVal], i) => (
+                            <tr key={`${key}.${subKey}`} className={cn(
+                              "border-b border-primary/10 last:border-0 hover:bg-primary/5 transition-colors",
+                              i % 2 === 0 ? "bg-black/[0.02] dark:bg-white/[0.02]" : "bg-transparent"
+                            )}>
                               <td className="px-3 py-2 text-xs text-foreground/50 border-r border-primary/10 font-mono whitespace-nowrap text-right align-top w-fit">
-                                {key}
+                                {key}.{subKey}
                               </td>
                               <td className="px-3 py-2 text-xs font-mono text-foreground/80 break-words leading-relaxed w-full">
-                                {Array.isArray(val) ? `[${val.join(', ')}]` : String(val)}
+                                {typeof subVal === 'object' ? JSON.stringify(subVal) : String(subVal)}
                               </td>
                             </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                          ));
+                        }
+                        return (
+                          <tr key={key} className="border-b border-primary/10 last:border-0 hover:bg-primary/5 transition-colors odd:bg-black/[0.02] even:bg-transparent dark:odd:bg-white/[0.02]">
+                            <td className="px-3 py-2 text-xs text-foreground/50 border-r border-primary/10 font-mono whitespace-nowrap text-right align-top w-fit">
+                              {key}
+                            </td>
+                            <td className="px-3 py-2 text-xs font-mono text-foreground/80 break-words leading-relaxed w-full">
+                              {Array.isArray(val) ? `[${val.join(', ')}]` : String(val)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              </aside>
+              </div>
+            </aside>
 
-              <aside className="w-[128px] min-w-[128px] border-r border-primary/10 pr-4">
-                <div className="sticky top-8">
-                  <div className="mb-2 flex w-full justify-center">
-                    <span className="text-center text-[10px] font-black uppercase tracking-[0.35em] text-primary">Protocol Step</span>
-                  </div>
-                  <div className="relative flex flex-col items-center gap-2.5 px-2 py-2">
-                    <div className="absolute left-1/2 top-4 bottom-4 w-px bg-muted/20 -translate-x-1/2" />
-                    {steps.map((step, idx) => (
-                      <button
-                        key={step.id}
-                        onClick={() => goToStep(idx)}
-                        className="relative z-10 flex items-center justify-center"
-                      >
-                        <div className={cn(
-                          "w-8 h-8 rounded-lg flex items-center justify-center text-[9px] font-black transition-all duration-500 border-2 bg-background relative z-10",
-                          idx <= currentStepIdx
-                            ? "bg-primary border-primary text-primary-foreground shadow-lg scale-110"
-                            : "bg-background border-muted text-muted-foreground group-hover:border-primary/40 group-hover:text-primary"
-                        )}>
-                          {step.id}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+            {/* Protocol step nav */}
+            <aside className="w-[128px] min-w-[128px] border-r border-primary/10 pr-4">
+              <div className="sticky top-8">
+                <div className="mb-2 flex w-full justify-center">
+                  <span className="text-center text-[10px] font-black uppercase tracking-[0.35em] text-primary">Protocol Step</span>
                 </div>
-              </aside>
-
-              {/* MAIN STAGE */}
-              <div className="relative flex-1 p-8 bg-gradient-to-b from-muted/5 to-transparent overflow-hidden min-h-[680px]" onClick={() => setOpenActor(null)}>
-                {/* Protocol selector */}
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex bg-muted/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm" onClick={e => e.stopPropagation()}>
-                  {Object.keys(MOCK_PROTOCOL_FLOWS).map((flow) => (
+                <div className="relative flex flex-col items-center gap-1.5 px-2 py-2">
+                  <div className="absolute left-1/2 top-4 bottom-4 w-px bg-muted/20 -translate-x-1/2" />
+                  {steps.map((step, idx) => (
                     <button
-                      key={flow}
-                      onClick={() => setActiveFlow(flow)}
-                      className={cn(
-                        "px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-between gap-3 whitespace-nowrap",
-                        activeFlow === flow
-                          ? "bg-background text-primary shadow-lg ring-1 ring-black/5"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
+                      key={step.id}
+                      onClick={() => goToStep(idx)}
+                      className="relative z-10 flex items-center justify-center"
                     >
-                      <LayoutGrid className={cn("w-3.5 h-3.5", activeFlow === flow ? "text-primary" : "text-muted-foreground/50")} />
-                      {flow}
+                      <div className={cn(
+                        "w-8 h-8 rounded-lg flex items-center justify-center text-[9px] font-black transition-all duration-500 border-2 bg-background relative z-10",
+                        idx <= currentStepIdx
+                          ? "bg-primary border-primary text-primary-foreground shadow-lg scale-110"
+                          : "bg-background border-muted text-muted-foreground"
+                      )}>
+                        {step.id}
+                      </div>
                     </button>
                   ))}
                 </div>
-                {/* Trust Mesh Background */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.18]">
-                  {Object.entries(actorCoords).flatMap(([actor, coord]) => {
-                    const targets = ACTORS[actor as Actor].sendsTo || [];
-                    return targets
-                      .filter(target => actorCoords[target])
-                      .map((target) => {
-                        const targetCoord = actorCoords[target];
-                        return (
-                          <line
-                            key={`${actor}-${target}`}
-                            x1={`${coord.x}%`}
-                            y1={`${coord.y}%`}
-                            x2={`${targetCoord.x}%`}
-                            y2={`${targetCoord.y}%`}
-                            className="stroke-primary stroke-[2.5px]"
-                          /> 
-                        );
-                      });
-                  })}
-                </svg>
+              </div>
+            </aside>
 
-                {/* ACTIVE COMMUNICATION ARROW */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  {arrowData && (
-                    <g className="animate-in fade-in duration-700">
-                      <line
-                        x1={arrowData.start.x} y1={arrowData.start.y}
-                        x2={arrowData.end.x} y2={arrowData.end.y}
-                        className="stroke-primary stroke-[1.5px]"
-                        strokeDasharray="8 6"
-                      >
-                        <animate attributeName="stroke-dashoffset" from="100" to="0" dur="8s" repeatCount="indefinite" />
-                      </line>
-                      {arrowMidpoint && (
-                        <polygon
-                          points="0,-2.5 4,0 0,2.5"
-                          className="fill-primary"
-                          transform={`translate(${arrowMidpoint.midX}, ${arrowMidpoint.midY}) rotate(${arrowMidpoint.angle})`}
-                        />
-                      )}
-                    </g>
-                  )}
-                </svg>
-
-                {/* THE ACTORS */}
-                {Object.entries(actorCoords).filter(([actor]) => actor !== 'AGENT' || currentStepIdx >= 1).map(([actor, coord]) => {
-                  const isActive = (currentStep.id as number) < 0 || currentStep.sender === actor || currentStep.receiver === actor;
-                  const isOpen = openActor === actor;
-                  return (
-                    <div
-                      key={actor}
-                      className={cn(
-                        "absolute transition-all duration-1000 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-3.5 z-20",
-                        actor === 'AGENT' && "animate-in fade-in duration-700"
-                      )}
-                      style={{ left: `${coord.x}%`, top: `${coord.y}%` }}
-                    >
-                      <div className={cn(
-                        "relative group flex flex-col items-center",
-                        isOpen && "shadow-[0_14px_40px_rgba(59,130,246,0.28)] rounded-3xl"
-                      )}>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setOpenActor(prev => prev === actor ? null : (actor as Actor));
-                          }}
-                          className={cn(
-                            "relative p-6 rounded-2xl bg-card border-2 transition-all duration-700 z-10 focus:outline-none",
-                            isActive
-                              ? "border-primary shadow-lg scale-110 ring-4 ring-primary/5"
-                              : "border-muted/50 scale-95",
-                            isOpen && "shadow-[0_12px_35px_rgba(59,130,246,0.38)] ring-2 ring-primary/15"
-                          )}
-                        >
-                          <ActorIcon type={actor as Actor} active={isActive} />
-                        </button>
-
-                        <div className={cn(
-                          "absolute -bottom-7 whitespace-nowrap px-2.5 py-0.5 rounded-full border shadow-md bg-background transition-all duration-700 z-0",
-                          isActive ? "border-primary scale-100" : "border-muted scale-95"
-                        )}>
-                          <span className={cn(
-                            "font-black text-[9px] tracking-widest uppercase transition-colors duration-700",
-                            isActive ? "text-primary" : "text-muted-foreground"
-                          )}>
-                            {ACTORS[actor as Actor].label}
-                          </span>
-                        </div>
-
-                        {isOpen && (
-                          <div className={cn(
-                            "absolute w-56 bg-background border border-primary/20 rounded-3xl p-4 text-left text-sm text-foreground z-30 transition-shadow duration-300",
-                            "shadow-[0_16px_45px_rgba(59,130,246,0.28)]",
-                            getActorPopupPlacement(coord)
-                          )} onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <span className="font-semibold text-xs tracking-[0.2em] text-primary">
-                                {ACTORS[actor as Actor].label}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setOpenActor(null);
-                                }}
-                                className="text-muted-foreground hover:text-foreground transition-colors text-sm font-bold"
-                              >
-                                ×
-                              </button>
-                            </div>
-                            <p className="text-[11px] leading-snug text-muted-foreground">
-                              {ACTORS[actor as Actor].description}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+            {/* MAIN STAGE — protocol mode */}
+            <div className="relative flex-1 p-8 bg-gradient-to-b from-muted/5 to-transparent overflow-hidden min-h-[680px]" onClick={() => setOpenActor(null)}>
+              {/* Protocol selector */}
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex bg-muted/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm" onClick={e => e.stopPropagation()}>
+                {Object.keys(MOCK_PROTOCOL_FLOWS).map((flow) => (
+                  <button
+                    key={flow}
+                    onClick={() => setActiveFlow(flow)}
+                    className={cn(
+                      "px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-between gap-3 whitespace-nowrap",
+                      activeFlow === flow
+                        ? "bg-background text-primary shadow-lg ring-1 ring-black/5"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <LayoutGrid className={cn("w-3.5 h-3.5", activeFlow === flow ? "text-primary" : "text-muted-foreground/50")} />
+                    {flow}
+                  </button>
+                ))}
               </div>
 
-              {/* AGENT ID STATE PANEL */}
-              <aside className="w-[650px] min-w-[650px] border-l border-primary/10 bg-background/95 p-5 overflow-y-auto">
-                <div className="sticky top-0 space-y-4">
-                  <div className="rounded-3xl border border-primary/20 bg-background/95 overflow-hidden shadow-xl">
-                    <div className="bg-primary/10 px-3 py-2 border-b border-primary/20 flex items-center gap-2">
-                      <Fingerprint className="w-4 h-4 text-primary" />
-                      <h3 className="text-[10px] font-black tracking-widest uppercase text-primary">Agent ID State</h3>
-                    </div>
-                    <div className="p-2.5 bg-muted/5 grid gap-3 grid-cols-1 sm:grid-cols-2">
-                      {idComponentGroups.map((group) => {
-                        const isOpen = openIdGroups[group.title];
-                        return (
-                          <div key={group.title} className="rounded-3xl border border-primary/10 bg-background/80 overflow-hidden shadow-sm">
+              {/* Trust Mesh Background */}
+              <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.18]">
+                {Object.entries(actorCoords).flatMap(([actor, coord]) => {
+                  const targets = ACTORS[actor as Actor].sendsTo || [];
+                  return targets
+                    .filter(target => actorCoords[target])
+                    .map((target) => {
+                      const targetCoord = actorCoords[target];
+                      return (
+                        <line
+                          key={`${actor}-${target}`}
+                          x1={`${coord.x}%`} y1={`${coord.y}%`}
+                          x2={`${targetCoord.x}%`} y2={`${targetCoord.y}%`}
+                          className="stroke-primary stroke-[2.5px]"
+                        />
+                      );
+                    });
+                })}
+              </svg>
+
+              {/* Active communication arrow */}
+              <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox="0 0 100 100" preserveAspectRatio="none">
+                {arrowData && (
+                  <g className="animate-in fade-in duration-700">
+                    <line
+                      x1={arrowData.start.x} y1={arrowData.start.y}
+                      x2={arrowData.end.x} y2={arrowData.end.y}
+                      className="stroke-primary stroke-[1.5px]"
+                      strokeDasharray="8 6"
+                    >
+                      <animate attributeName="stroke-dashoffset" from="100" to="0" dur="8s" repeatCount="indefinite" />
+                    </line>
+                    {arrowMidpoint && (
+                      <polygon
+                        points="0,-2.5 4,0 0,2.5"
+                        className="fill-primary"
+                        transform={`translate(${arrowMidpoint.midX}, ${arrowMidpoint.midY}) rotate(${arrowMidpoint.angle})`}
+                      />
+                    )}
+                  </g>
+                )}
+              </svg>
+
+              {/* Actors */}
+              {Object.entries(actorCoords).filter(([actor]) => actor !== 'AGENT' || currentStepIdx >= 1).map(([actor, coord]) => {
+                const isActive = (currentStep.id as number) < 0 || currentStep.sender === actor || currentStep.receiver === actor;
+                const isOpen = openActor === actor;
+                return (
+                  <div
+                    key={actor}
+                    className={cn(
+                      "absolute transition-all duration-1000 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-3.5 z-20",
+                      actor === 'AGENT' && "animate-in fade-in duration-700"
+                    )}
+                    style={{ left: `${coord.x}%`, top: `${coord.y}%` }}
+                  >
+                    <div className={cn(
+                      "relative group flex flex-col items-center",
+                      isOpen && "shadow-[0_14px_40px_rgba(59,130,246,0.28)] rounded-3xl"
+                    )}>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setOpenActor(prev => prev === actor ? null : (actor as Actor));
+                        }}
+                        className={cn(
+                          "relative p-6 rounded-2xl bg-card border-2 transition-all duration-700 z-10 focus:outline-none",
+                          isActive ? "border-primary shadow-lg scale-110 ring-4 ring-primary/5" : "border-muted/50 scale-95",
+                          isOpen && "shadow-[0_12px_35px_rgba(59,130,246,0.38)] ring-2 ring-primary/15"
+                        )}
+                      >
+                        <ActorIcon type={actor as Actor} active={isActive} />
+                      </button>
+                      <div className={cn(
+                        "absolute -bottom-7 whitespace-nowrap px-2.5 py-0.5 rounded-full border shadow-md bg-background transition-all duration-700 z-0",
+                        isActive ? "border-primary scale-100" : "border-muted scale-95"
+                      )}>
+                        <span className={cn(
+                          "font-black text-[9px] tracking-widest uppercase transition-colors duration-700",
+                          isActive ? "text-primary" : "text-muted-foreground"
+                        )}>
+                          {ACTORS[actor as Actor].label}
+                        </span>
+                      </div>
+                      {isOpen && (
+                        <div className={cn(
+                          "absolute w-56 bg-background border border-primary/20 rounded-3xl p-4 text-left text-sm text-foreground z-30 transition-shadow duration-300",
+                          "shadow-[0_16px_45px_rgba(59,130,246,0.28)]",
+                          getActorPopupPlacement(coord)
+                        )} onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <span className="font-semibold text-xs tracking-[0.2em] text-primary">
+                              {ACTORS[actor as Actor].label}
+                            </span>
                             <button
                               type="button"
-                              onClick={() => setOpenIdGroups(prev => ({ ...prev, [group.title]: !prev[group.title] }))}
-                              className="w-full flex items-center justify-between gap-3 px-3 py-3 text-left text-[11px] font-black uppercase tracking-[0.2em] text-primary bg-primary/5 hover:bg-primary/10 transition-colors"
+                              onClick={(event) => { event.stopPropagation(); setOpenActor(null); }}
+                              className="text-muted-foreground hover:text-foreground transition-colors text-sm font-bold"
                             >
-                              <div className="flex items-center gap-3">
-                                <svg className="w-9 h-9" viewBox="0 0 32 32" aria-hidden="true">
-                                  <circle
-                                    cx="16"
-                                    cy="16"
-                                    r="12"
-                                    fill="none"
-                                    stroke="rgba(148, 163, 184, 0.25)"
-                                    strokeWidth="6"
-                                  />
-                                  <circle
-                                    cx="16"
-                                    cy="16"
-                                    r="12"
-                                    fill="none"
-                                    stroke={getProgressColor(getGroupProgress(group))}
-                                    strokeWidth="6"
-                                    strokeLinecap="round"
-                                    strokeDasharray={progressCircumference}
-                                    strokeDashoffset={progressCircumference * (1 - getGroupProgress(group))}
-                                    transform="rotate(-90 16 16)"
-                                  />
-                                </svg>
-                                <span>{group.title}</span>
-                              </div>
-                              <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isOpen ? "rotate-180" : "rotate-0")} />
+                              ×
                             </button>
-                            {isOpen && (
-                              <div className="space-y-2 px-3 pb-3 pt-1">
-                                {group.items.map((comp, idx) => (
-                                  <div key={`${group.title}-${comp.label}-${idx}`} className={cn(
-                                    "flex items-center justify-between px-2 py-1 rounded-md border transition-all duration-500",
-                                    comp.active ? "bg-primary/5 border-primary/20 shadow-sm" : "bg-muted/10 border-transparent opacity-40 grayscale"
-                                  )}>
-                                    <div className="flex items-center gap-2">
-                                      {comp.active ? (
-                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                                      ) : (
-                                        <Circle className="w-3.5 h-3.5 text-muted-foreground" />
-                                      )}
-                                      <span className={cn("text-[10px] font-bold uppercase tracking-wider", comp.active ? "text-foreground" : "text-muted-foreground")}> 
-                                        {comp.label}
-                                      </span>
-                                    </div>
-                                    <span className={cn("text-[9px] font-mono truncate max-w-[120px]", comp.active ? "text-primary" : "text-muted-foreground")}>{comp.value}</span>
-                                  </div>
-                                ))}
-                                {group.items.length === 0 && (
-                                  <div className="px-2 py-2 text-[10px] text-muted-foreground italic">No items in this group.</div>
-                                )}
-                              </div>
-                            )}
                           </div>
-                        );
-                      })}
+                          <p className="text-[11px] leading-snug text-muted-foreground">
+                            {ACTORS[actor as Actor].description}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              </aside>
+                );
+              })}
             </div>
-          </>
+
+            {agentIdPanel}
+          </div>
+        ) : (
+          /* INVESTIGATION VIEW */
+          <div className="flex flex-1 min-h-[760px] border-b border-primary/10">
+            {/* Investigation main stage */}
+            <div className="relative flex-1 bg-gradient-to-b from-muted/5 to-transparent flex items-center justify-center p-16 min-h-[680px]">
+              {selectedIdComponent ? (
+                <div className="text-center animate-in fade-in duration-300 max-w-2xl w-full">
+                  <p className="text-[10px] font-black uppercase tracking-[0.35em] text-primary mb-6">Agent ID Field</p>
+                  <h2 className="text-6xl font-black tracking-tight text-foreground mb-8 leading-tight">
+                    {selectedIdComponent.label}
+                  </h2>
+                  <p className="text-2xl font-mono text-primary break-all">{selectedIdComponent.value}</p>
+                </div>
+              ) : (
+                <div className="text-center text-muted-foreground">
+                  <ShieldAlert className="w-16 h-16 text-primary/20 mx-auto mb-6" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.35em] mb-3">Incident Investigation</p>
+                  <p className="text-sm">Click any active Agent ID field on the right to examine it here.</p>
+                </div>
+              )}
+            </div>
+
+            {agentIdPanel}
+          </div>
         )}
       </div>
     </div>
