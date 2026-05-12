@@ -568,6 +568,7 @@ export class MockProtocolSource implements ProtocolSource {
   }
 
   async getIdState(flowName: string, stepIdx: number, currentStep: ProtocolStep | null): Promise<IdComponent[]> {
+    if (currentStep) { };
     if (flowName === 'Agent ID, no OAuth') {
       return [
         { label: 'Deployer Identifier', value: 'deployer \#101', active: stepIdx >= 2 },
