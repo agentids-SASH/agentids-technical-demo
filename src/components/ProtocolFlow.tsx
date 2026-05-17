@@ -80,6 +80,7 @@ const EMERGENCY_SHUTDOWN_STEPS = [
     accomplishment: '',
     sender: 'REGULATOR' as ShutdownActor,
     receiver: 'BANK_2' as ShutdownActor,
+    additionalReceivers: ['BANK_3' as ShutdownActor],
     // payload: { command: 'shutdown', agent_instance_id: 'OPAQUE-ID', agent_instance_shutdown_command: 'SIGNED-CMD' },
   },
   {
@@ -343,18 +344,17 @@ export const ProtocolFlow = () => {
 
   const shutdownStep = EMERGENCY_SHUTDOWN_STEPS[shutdownStepIdx];
 
-  const shutdownArrowData = useMemo(() => {
+  const shutdownArrows = useMemo(() => {
     const start = SHUTDOWN_ACTORS[shutdownStep.sender];
-    const end = SHUTDOWN_ACTORS[shutdownStep.receiver];
-    return { start, end };
+    const receivers = [shutdownStep.receiver, ...(shutdownStep.additionalReceivers ?? [])];
+    return receivers.map(r => {
+      const end = SHUTDOWN_ACTORS[r];
+      const midX = (start.x + end.x) / 2;
+      const midY = (start.y + end.y) / 2;
+      const angle = Math.atan2(end.y - start.y, end.x - start.x) * (180 / Math.PI);
+      return { start, end, midX, midY, angle, key: r };
+    });
   }, [shutdownStep]);
-
-  const shutdownArrowMidpoint = useMemo(() => {
-    const midX = (shutdownArrowData.start.x + shutdownArrowData.end.x) / 2;
-    const midY = (shutdownArrowData.start.y + shutdownArrowData.end.y) / 2;
-    const angle = Math.atan2(shutdownArrowData.end.y - shutdownArrowData.start.y, shutdownArrowData.end.x - shutdownArrowData.start.x) * (180 / Math.PI);
-    return { midX, midY, angle };
-  }, [shutdownArrowData]);
 
   const idGroupDefinitions = useMemo(() => [
     {
@@ -879,28 +879,30 @@ export const ProtocolFlow = () => {
                 })}
               </svg>
 
-              {/* Active communication arrow */}
+              {/* Active communication arrow(s) */}
               <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <g className="animate-in fade-in duration-700">
-                  <line
-                    x1={shutdownArrowData.start.x} y1={shutdownArrowData.start.y}
-                    x2={shutdownArrowData.end.x} y2={shutdownArrowData.end.y}
-                    className="stroke-destructive stroke-[1.5px]"
-                    strokeDasharray="8 6"
-                  >
-                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur="8s" repeatCount="indefinite" />
-                  </line>
-                  <polygon
-                    points="0,-2.5 4,0 0,2.5"
-                    className="fill-destructive"
-                    transform={`translate(${shutdownArrowMidpoint.midX}, ${shutdownArrowMidpoint.midY}) rotate(${shutdownArrowMidpoint.angle})`}
-                  />
-                </g>
+                {shutdownArrows.map(arrow => (
+                  <g key={arrow.key} className="animate-in fade-in duration-700">
+                    <line
+                      x1={arrow.start.x} y1={arrow.start.y}
+                      x2={arrow.end.x} y2={arrow.end.y}
+                      className="stroke-destructive stroke-[1.5px]"
+                      strokeDasharray="8 6"
+                    >
+                      <animate attributeName="stroke-dashoffset" from="100" to="0" dur="8s" repeatCount="indefinite" />
+                    </line>
+                    <polygon
+                      points="0,-2.5 4,0 0,2.5"
+                      className="fill-destructive"
+                      transform={`translate(${arrow.midX}, ${arrow.midY}) rotate(${arrow.angle})`}
+                    />
+                  </g>
+                ))}
               </svg>
 
               {/* Actors */}
               {(Object.entries(SHUTDOWN_ACTORS) as [ShutdownActor, { label: string; x: number; y: number }][]).map(([actor, coord]) => {
-                const isActive = shutdownStep.sender === actor || shutdownStep.receiver === actor;
+                const isActive = shutdownStep.sender === actor || shutdownStep.receiver === actor || (shutdownStep.additionalReceivers?.includes(actor) ?? false);
                 return (
                   <div
                     key={actor}
