@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
-import { User, Server, Activity, Bot, Database , Code, Fingerprint, CheckCircle2, Circle, LayoutGrid, ChevronDown, Wrench, ShieldAlert, Network, Siren } from 'lucide-react';
+import { User, Server, Activity, Bot, Database , Code, Fingerprint, CheckCircle2, Circle, LayoutGrid, ChevronDown, Wrench, ShieldAlert, Network, Siren, Landmark, Scale } from 'lucide-react';
 import { ACTORS } from '../lib/protocol/actors';
 import type { Actor, ProtocolStep, IdComponent } from '../lib/protocol/types';
 import { cn } from '../lib/utils';
@@ -8,6 +8,111 @@ import { MockProtocolSource, MOCK_PROTOCOL_FLOWS } from '../lib/protocol/mock-so
 // Adjust these to control panel widths and give the stage more/less horizontal space
 const LEFT_PANEL_WIDTH = 320;
 const RIGHT_PANEL_WIDTH = 520;
+
+type ShutdownActor = 'PROVIDER' | 'AGENT' | 'BANK' | 'BANK_2' | 'BANK_3' | 'REGULATOR';
+
+const SHUTDOWN_ACTORS: Record<ShutdownActor, { label: string; x: number; y: number }> = {
+  PROVIDER:  { label: 'Provider',  x: 15, y: 50 },
+  AGENT:     { label: 'Agent',     x: 30, y: 50 },
+  BANK:      { label: 'Bank',      x: 62, y: 30 },
+  BANK_2:    { label: 'Bank 2',    x: 62, y: 50 },
+  BANK_3:    { label: 'Bank 3',    x: 62, y: 67 },
+  REGULATOR: { label: 'Regulator', x: 85, y: 50 },
+};
+
+const SHUTDOWN_MESH: [ShutdownActor, ShutdownActor][] = [
+  ['PROVIDER', 'AGENT'],
+  ['PROVIDER', 'BANK'],
+  ['AGENT',    'BANK'],
+  ['AGENT',    'BANK_2'],
+  ['AGENT',    'BANK_3'],
+  ['REGULATOR','BANK'],
+  ['REGULATOR','BANK_2'],
+  ['REGULATOR','BANK_3'],
+];
+
+const EMERGENCY_SHUTDOWN_STEPS = [
+  {
+    id: 1,
+    title: 'Unathorized agent action',
+    description: 'A bank detects the agent attempting an unauthorized action to transfer money to unknown accounts.',
+    accomplishment_title: '',
+    accomplishment: '',
+    sender: 'AGENT' as ShutdownActor,
+    receiver: 'BANK' as ShutdownActor,
+    // payload: { alert_type: 'policy_violation', severity: 'high', timestamp: 'ISO-8601' },
+  },
+  {
+    id: 2,
+    title: 'Block and Shutdown Agent',
+    description: 'The bank decides to take protective measures by both blocking the agent & issuing shutdown request.',
+    accomplishment_title: '',
+    accomplishment: '',
+    sender: 'BANK' as ShutdownActor,
+    receiver: 'PROVIDER' as ShutdownActor,
+    // payload: { request: 'agent_instance_record', agent_instance_id: 'OPAQUE-ID' },
+  },
+  {
+    id: 3,
+    title: 'Provider Slow to Shutdown Agent',
+    description: 'The provider responds stating a service-level agreement of 24 hours to respond to shutdown requests.',
+     accomplishment_title: '',
+    accomplishment: '',
+    sender: 'PROVIDER' as ShutdownActor,
+    receiver: 'BANK' as ShutdownActor,
+    // payload: { agent_id: 'SIGNED-JWT', developer_id: 'DID', provider_id: 'PID', authorization_policies: 'POLICY-DOC' },
+  },
+  {
+    id: 4,
+    title: 'Bank escalates to regulator',
+    description: 'After the Agent continues attempting unauthorized transfers, bank flags ongoing suspicious activity to financial regulator.',
+    accomplishment_title: '',
+    accomplishment: '',
+    sender: 'BANK' as ShutdownActor,
+    receiver: 'REGULATOR' as ShutdownActor,
+    // payload: { notice: 'shutdown_imminent', agent_instance_id: 'OPAQUE-ID', authorized_by: 'regulator' },
+  },
+  {
+    id: 5,
+    title: 'Regulator surveys other banks and finds ongoing attacks.',
+    description: 'The regulator asks other banks to check for this malicious activity too.',
+    accomplishment_title: '',
+    accomplishment: '',
+    sender: 'REGULATOR' as ShutdownActor,
+    receiver: 'BANK_2' as ShutdownActor,
+    // payload: { command: 'shutdown', agent_instance_id: 'OPAQUE-ID', agent_instance_shutdown_command: 'SIGNED-CMD' },
+  },
+  {
+    id: 6,
+    title: 'Regulator gets high priority shutdown token',
+    description: 'Thebank combines one of its shutdown codes with the regulator to make an override token.',
+    accomplishment_title: '',
+    accomplishment: '',
+    sender: 'BANK' as ShutdownActor,
+    receiver: 'REGULATOR' as ShutdownActor,
+    // payload: { command: 'halt', agent_instance_id: 'OPAQUE-ID', effective_at: 'ISO-8601' },
+  },
+  {
+    id: 7,
+    title: 'Regulator sends the priority shutown token to the provider.',
+    description: '',
+    accomplishment_title: '',
+    accomplishment: '',
+    sender: 'REGULATOR' as ShutdownActor,
+    receiver: 'PROVIDER' as ShutdownActor,
+    // payload: { command: 'halt', agent_instance_id: 'OPAQUE-ID', effective_at: 'ISO-8601' },
+  },
+   {
+    id: 8,
+    title: 'Provider shuts down the agent immediately.',
+    description: '',
+    accomplishment_title: '',
+    accomplishment: '',
+    sender: 'PROVIDER' as ShutdownActor,
+    receiver: 'AGENT' as ShutdownActor,
+    // payload: { command: 'halt', agent_instance_id: 'OPAQUE-ID', effective_at: 'ISO-8601' },
+  },
+];
 
 const INVESTIGATION_SCENARIOS = {
   'prompt-injection': {
@@ -87,6 +192,18 @@ const ActorIcon = ({ type, active }: { type: Actor; active?: boolean; }) => {
   }
 };
 
+const ShutdownActorIcon = ({ type, active }: { type: ShutdownActor; active?: boolean }) => {
+  const props = { className: cn("w-14 h-14 transition-all duration-700", active ? "text-destructive scale-110" : "text-muted-foreground/60") };
+  switch (type) {
+    case 'PROVIDER':  return <Wrench {...props} />;
+    case 'AGENT':     return <Bot {...props} />;
+    case 'BANK':
+    case 'BANK_2':
+    case 'BANK_3':    return <Landmark {...props} />;
+    case 'REGULATOR': return <Scale {...props} />;
+  }
+};
+
 export const ProtocolFlow = () => {
   const [steps, setSteps] = useState<ProtocolStep[]>([]);
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
@@ -97,6 +214,7 @@ export const ProtocolFlow = () => {
   const [investigationScenario, setInvestigationScenario] = useState<ScenarioId | null>(null);
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false);
+  const [shutdownStepIdx, setShutdownStepIdx] = useState(0);
   const [snapshotIdComponents, setSnapshotIdComponents] = useState<IdComponent[] | null>(null);
   const [fullIdComponents, setFullIdComponents] = useState<IdComponent[] | null>(null);
   const [idSource, setIdSource] = useState<'current' | 'full'>('current');
@@ -222,6 +340,21 @@ export const ProtocolFlow = () => {
     const angle = Math.atan2(arrowData.end.y - arrowData.start.y, arrowData.end.x - arrowData.start.x) * (180 / Math.PI);
     return { midX, midY, angle };
   }, [arrowData]);
+
+  const shutdownStep = EMERGENCY_SHUTDOWN_STEPS[shutdownStepIdx];
+
+  const shutdownArrowData = useMemo(() => {
+    const start = SHUTDOWN_ACTORS[shutdownStep.sender];
+    const end = SHUTDOWN_ACTORS[shutdownStep.receiver];
+    return { start, end };
+  }, [shutdownStep]);
+
+  const shutdownArrowMidpoint = useMemo(() => {
+    const midX = (shutdownArrowData.start.x + shutdownArrowData.end.x) / 2;
+    const midY = (shutdownArrowData.start.y + shutdownArrowData.end.y) / 2;
+    const angle = Math.atan2(shutdownArrowData.end.y - shutdownArrowData.start.y, shutdownArrowData.end.x - shutdownArrowData.start.x) * (180 / Math.PI);
+    return { midX, midY, angle };
+  }, [shutdownArrowData]);
 
   const idGroupDefinitions = useMemo(() => [
     {
@@ -681,71 +814,124 @@ export const ProtocolFlow = () => {
             {agentIdPanel}
           </div>
         ) : viewMode === 'id-investigation' ? (
-          /* INVESTIGATION MODE — full agent ID view */
+          /* EMERGENCY SHUTDOWN VIEW */
           <div className="flex flex-1 min-h-[760px] border-b border-primary/10">
-            <div className="flex-1 flex flex-col gap-6 p-8 overflow-y-auto">
-              <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Agent ID Components</div>
-              <div className="grid grid-cols-2 gap-4">
-                {idComponentGroups.map((group) => {
-                  const isOpen = openIdGroups[group.title];
-                  return (
-                    <div key={group.title} className="rounded-3xl border border-primary/10 bg-background/80 overflow-hidden shadow-sm">
-                      <button
-                        type="button"
-                        onClick={() => setOpenIdGroups(prev => ({ ...prev, [group.title]: !prev[group.title] }))}
-                        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-[11px] font-black uppercase tracking-[0.2em] text-primary bg-primary/5 hover:bg-primary/10 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <svg className="w-9 h-9" viewBox="0 0 32 32" aria-hidden="true">
-                            <circle cx="16" cy="16" r="12" fill="none" stroke="rgba(148, 163, 184, 0.18)" strokeWidth="6" />
-                            <circle
-                              cx="16" cy="16" r="12" fill="none"
-                              stroke={getProgressColor(getGroupProgress(group))}
-                              strokeWidth="6" strokeLinecap="round"
-                              strokeDasharray={progressCircumference}
-                              strokeDashoffset={progressCircumference * (1 - getGroupProgress(group))}
-                              transform="rotate(-90 16 16)"
-                            />
-                          </svg>
-                          <span>{group.title}</span>
-                        </div>
-                        <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isOpen ? "rotate-180" : "rotate-0")} />
-                      </button>
-                      {isOpen && (
-                        <div className="space-y-2 px-4 pb-4 pt-2">
-                          {group.items.map((comp, idx) => (
-                            <div
-                              key={`id-inv-${group.title}-${comp.label}-${idx}`}
-                              onMouseEnter={(e) => comp.active && showTooltip(e, `${comp.label} = ${comp.value}`)}
-                              onMouseLeave={hideTooltip}
-                              className={cn(
-                                "flex items-center gap-2 px-3 py-2 rounded-md border transition-all duration-300",
-                                comp.active ? "bg-primary/5 border-primary/20 shadow-sm" : "bg-muted/10 border-transparent opacity-40 grayscale"
-                              )}
-                            >
-                              {comp.active ? (
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                              ) : (
-                                <Circle className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                              )}
-                              <span className={cn("text-[10px] font-bold uppercase tracking-wider", comp.active ? "text-foreground" : "text-muted-foreground")}>
-                                {comp.label}
-                              </span>
-                              {comp.active && (
-                                <span className="ml-auto text-[9px] font-mono text-muted-foreground truncate max-w-[180px]">{comp.value}</span>
-                              )}
-                            </div>
-                          ))}
-                          {group.items.length === 0 && (
-                            <div className="px-2 py-2 text-[10px] text-muted-foreground italic">No items in this group.</div>
-                          )}
-                        </div>
-                      )}
+            {/* Left aside: Step details */}
+            <aside style={{ width: LEFT_PANEL_WIDTH, minWidth: LEFT_PANEL_WIDTH }} className="border-r border-primary/10 bg-background/95 flex flex-col">
+              <div className="px-5 pt-4 pb-3 border-b border-primary/10">
+                <span className="text-xs font-black tracking-[0.2em] uppercase text-primary">Current Step Details</span>
+              </div>
+              <div className="flex flex-col gap-2 p-5 pb-3 h-[220px] min-h-[220px]">
+                <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Current Step</div>
+                <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto">
+                  <p className="text-sm font-black text-foreground leading-relaxed">{shutdownStep.title}</p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 px-5 pb-5 flex-1 min-h-0">
+                <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Step Details</div>
+                <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto">
+                  <p className="text-sm text-foreground/80 leading-relaxed">{shutdownStep.description}</p>
+                </div>
+              </div>
+            </aside>
+
+            {/* Step navigator */}
+            <aside className="w-[128px] min-w-[128px] border-r border-primary/10 flex flex-col">
+              <div className="px-2 pt-4 pb-3 border-b border-primary/10 flex justify-center">
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-primary text-center">Step</span>
+              </div>
+              <div className="relative flex flex-col items-center gap-1.5 px-2 py-2">
+                <div className="absolute left-1/2 top-4 bottom-4 w-px bg-muted/20 -translate-x-1/2" />
+                {EMERGENCY_SHUTDOWN_STEPS.map((step, idx) => (
+                  <button
+                    key={step.id}
+                    onClick={() => setShutdownStepIdx(idx)}
+                    className="relative z-10 flex items-center justify-center"
+                  >
+                    <div className={cn(
+                      "w-8 h-8 rounded-lg flex items-center justify-center text-[9px] font-black transition-all duration-500 border-2 bg-background relative z-10",
+                      idx <= shutdownStepIdx
+                        ? "bg-primary border-primary text-primary-foreground shadow-lg scale-110"
+                        : "bg-background border-muted text-muted-foreground"
+                    )}>
+                      {step.id}
                     </div>
+                  </button>
+                ))}
+              </div>
+            </aside>
+
+            {/* Stage */}
+            <div className="relative flex-1 p-8 bg-gradient-to-b from-muted/5 to-transparent overflow-hidden min-h-[680px]">
+              {/* Trust Mesh Background */}
+              <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.18]">
+                {SHUTDOWN_MESH.map(([a, b]) => {
+                  const from = SHUTDOWN_ACTORS[a];
+                  const to = SHUTDOWN_ACTORS[b];
+                  return (
+                    <line
+                      key={`${a}-${b}`}
+                      x1={`${from.x}%`} y1={`${from.y}%`}
+                      x2={`${to.x}%`} y2={`${to.y}%`}
+                      className="stroke-primary stroke-[2.5px]"
+                    />
                   );
                 })}
-              </div>
+              </svg>
+
+              {/* Active communication arrow */}
+              <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <g className="animate-in fade-in duration-700">
+                  <line
+                    x1={shutdownArrowData.start.x} y1={shutdownArrowData.start.y}
+                    x2={shutdownArrowData.end.x} y2={shutdownArrowData.end.y}
+                    className="stroke-destructive stroke-[1.5px]"
+                    strokeDasharray="8 6"
+                  >
+                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur="8s" repeatCount="indefinite" />
+                  </line>
+                  <polygon
+                    points="0,-2.5 4,0 0,2.5"
+                    className="fill-destructive"
+                    transform={`translate(${shutdownArrowMidpoint.midX}, ${shutdownArrowMidpoint.midY}) rotate(${shutdownArrowMidpoint.angle})`}
+                  />
+                </g>
+              </svg>
+
+              {/* Actors */}
+              {(Object.entries(SHUTDOWN_ACTORS) as [ShutdownActor, { label: string; x: number; y: number }][]).map(([actor, coord]) => {
+                const isActive = shutdownStep.sender === actor || shutdownStep.receiver === actor;
+                return (
+                  <div
+                    key={actor}
+                    className="absolute transition-all duration-1000 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-3.5 z-20"
+                    style={{ left: `${coord.x}%`, top: `${coord.y}%` }}
+                  >
+                    <div className="relative flex flex-col items-center">
+                      <div className={cn(
+                        "relative p-6 rounded-2xl bg-card border-2 transition-all duration-700",
+                        isActive ? "border-destructive shadow-lg scale-110 ring-4 ring-destructive/10" : "border-muted/50 scale-95"
+                      )}>
+                        <ShutdownActorIcon type={actor} active={isActive} />
+                      </div>
+                      <div className={cn(
+                        "absolute -bottom-7 whitespace-nowrap px-2.5 py-0.5 rounded-full border shadow-md bg-background transition-all duration-700",
+                        isActive ? "border-destructive scale-100" : "border-muted scale-95"
+                      )}>
+                        <span className={cn(
+                          "font-black text-[9px] tracking-widest uppercase transition-colors duration-700",
+                          isActive ? "text-destructive" : "text-muted-foreground"
+                        )}>
+                          {coord.label}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+
+            {agentIdPanel}
           </div>
         ) : (
           /* INVESTIGATION VIEW */
