@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
-import { User, Server, Activity, Bot, Database , Code, Fingerprint, CheckCircle2, Circle, LayoutGrid, ChevronDown, Wrench, ShieldAlert, Network, Siren, Landmark, Scale } from 'lucide-react';
+import { User, Server, Activity, Bot, Database , Code, Fingerprint, CheckCircle2, Circle, LayoutGrid, ChevronDown, Wrench, ShieldAlert, Network, Siren, Landmark, Scale, X } from 'lucide-react';
 import { ACTORS } from '../lib/protocol/actors';
 import type { Actor, ProtocolStep, IdComponent } from '../lib/protocol/types';
 import { cn } from '../lib/utils';
@@ -65,7 +65,7 @@ const EMERGENCY_SHUTDOWN_STEPS = [
   {
     id: 4,
     title: 'Bank escalates to regulator',
-    description: 'After the Agent continues attempting unauthorized transfers, bank flags ongoing suspicious activity to financial regulator.',
+    description: 'After the Agent continues attempting unauthorized transfers, the bank flags the ongoing suspicious activity to its financial regulator.',
     accomplishment_title: '',
     accomplishment: '',
     sender: 'BANK' as ShutdownActor,
@@ -85,7 +85,7 @@ const EMERGENCY_SHUTDOWN_STEPS = [
   {
     id: 6,
     title: 'Regulator gets high priority shutdown token',
-    description: 'Thebank combines one of its shutdown codes with the regulator to make an override token.',
+    description: 'The bank combines one of its shutdown codes with the regulator to make an override token.',
     accomplishment_title: '',
     accomplishment: '',
     sender: 'BANK' as ShutdownActor,
@@ -913,6 +913,11 @@ export const ProtocolFlow = () => {
                         isActive ? "border-destructive shadow-lg scale-110 ring-4 ring-destructive/10" : "border-muted/50 scale-95"
                       )}>
                         <ShutdownActorIcon type={actor} active={isActive} />
+                        {actor === 'AGENT' && shutdownStepIdx === EMERGENCY_SHUTDOWN_STEPS.length - 1 && (
+                          <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-destructive/10 animate-in fade-in duration-500">
+                            <X className="w-14 h-14 text-destructive stroke-[2.5]" />
+                          </div>
+                        )}
                       </div>
                       <div className={cn(
                         "absolute -bottom-7 whitespace-nowrap px-2.5 py-0.5 rounded-full border shadow-md bg-background transition-all duration-700",
