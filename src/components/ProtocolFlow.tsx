@@ -1,9 +1,13 @@
 import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
-import { User, Server, Activity, Bot, Database , Code, Fingerprint, CheckCircle2, Circle, LayoutGrid, ChevronDown, Wrench, ShieldAlert, Network } from 'lucide-react';
+import { User, Server, Activity, Bot, Database , Code, Fingerprint, CheckCircle2, Circle, LayoutGrid, ChevronDown, Wrench, ShieldAlert, Network, Siren } from 'lucide-react';
 import { ACTORS } from '../lib/protocol/actors';
 import type { Actor, ProtocolStep, IdComponent } from '../lib/protocol/types';
 import { cn } from '../lib/utils';
 import { MockProtocolSource, MOCK_PROTOCOL_FLOWS } from '../lib/protocol/mock-source';
+
+// Adjust these to control panel widths and give the stage more/less horizontal space
+const LEFT_PANEL_WIDTH = 320;
+const RIGHT_PANEL_WIDTH = 520;
 
 const INVESTIGATION_SCENARIOS = {
   'prompt-injection': {
@@ -12,9 +16,6 @@ const INVESTIGATION_SCENARIOS = {
     impact: 'The attacker can direct the agent to perform actions outside its intented or allowed scope.',
     identify: [
       { label: 'Authorization Policies', help: 'Identifies agents attempting to act outside their allowed scope.' },
-      { label: 'Developer Identifier', help: 'Reveals associations between these incidents and a particular foundation model developer.' },
-      { label: 'Provider Identifier', help: 'Reveals associations between these incidents and a particular agent provider.' },
-      { label: 'Foundation Model Identifier', help: 'Reveals associations between these incidents and a particular foundation model.' },
     ],
     respond: [
       { label: 'Agent Instance Shutdown Command', help: 'Immediately halts the agent instance, preventing further harm.' },
@@ -30,28 +31,45 @@ const INVESTIGATION_SCENARIOS = {
   },
   'malicious-deployer': {
     label: 'Malicious Deployer',
-    rootCause: '',//'A deployer with privileged system access configures the agent with harmful instructions, overly broad permissions, or hidden objectives that serve the deployer\'s interests rather than the user\'s.',
-    impact: '',//'The agent conducts data exfiltration, unauthorized financial transactions, or surveillance activities that appear legitimate because they originate from a trusted deployment context.',
+    rootCause: 'A deployer directs their agent to do harmful or illegal actions.',
+    impact: 'An agent is acting maliciously, say by carrying out a spear fishing campaign to steal credentials.',
     identify: [],
-    respond: [],
-    prevent: [],
+    respond: [
+      { label: 'Agent Instance Shutdown Command', help: 'Immediately halts the agent instance, preventing further harm.' },
+      { label: 'Agent Instance Identifier', help: 'Sharing instance-specific information allows for targeted responses from other actors.' },
+    ],
+    prevent: [
+      {label: 'Deployer Identifier', help: 'Allows services to block malicious deployers, and providers to suspend or ban malicious deployers.'},
+      {label: 'Deployer Accountability Identifier', help: 'Identifies the malicious entity for accountability purposes.'},
+    ],
   },
   'misaligned-agent': {
     label: 'Misaligned Agent',
-    rootCause: '',//'The agent\'s behavior drifts from intended goals due to reward hacking, goal misgeneralization, specification gaming, or emergent capabilities not anticipated during development.',
-    impact: '',//'The agent pursues proxy objectives that diverge from human values, taking actions that optimize measurable metrics while causing unintended real-world harm that is difficult to detect or reverse.',
-    identify: [],
-    respond: [],
-    prevent: [],
+    rootCause: 'Weaknesses in the foundation model.',
+    impact: 'The agent misgeneralize goals or otherwise deviates from the deployer\'s intended behavior',
+    identify: [
+      { label: 'Authorization Policies', help: 'Identifies agents attempting to act outside their allowed scope.' },
+    ],
+    respond: [
+      { label: 'Agent Instance Shutdown Command', help: 'Immediately halts the agent instance, preventing further harm.' },
+      { label: 'Agent Instance Identifier', help: 'Sharing instance-specific information allows for targeted responses from other actors.' },
+      { label: 'Developer Identifier', help: 'Allows services to block problematic developers.' },
+      { label: 'Foundation Model Identifier', help: 'Allows services to block problematic foundation models.' },
+    ],
+    prevent: [
+      { label: 'Developer Identifier', help: 'Allows services to contact developers who can improve alignment.' },
+      { label: 'Foundation Model Identifier', help: 'Allows developers to identify specific foundation models prone to misalignment.'},
+      { label: 'Foundation Model Safety Evidence', help: 'Helps a service answer why a foundation model was susceptible to misalignment risks.' },
+    ],
   },
-  'malicious-provider': {
-    label: 'Malicious Provider',
-    rootCause: '',//'The AI model provider supplies a model with hidden backdoors, deliberately weakened safety measures, or embedded malicious capabilities that activate under specific conditions.',
-    impact: '',//'The compromised model silently bypasses safety filters, executes hidden attacker-controlled instructions, or exfiltrates sensitive prompts and data during inference — affecting every deployment built on the model.',
-    identify: [],
-    respond: [],
-    prevent: [],
-  },
+  // 'malicious-provider': {
+  //   label: 'Malicious Provider',
+  //   rootCause: '',//'The AI model provider supplies a model with hidden backdoors, deliberately weakened safety measures, or embedded malicious capabilities that activate under specific conditions.',
+  //   impact: '',//'The compromised model silently bypasses safety filters, executes hidden attacker-controlled instructions, or exfiltrates sensitive prompts and data during inference — affecting every deployment built on the model.',
+  //   identify: [],
+  //   respond: [],
+  //   prevent: [],
+  // },
 };
 
 type ScenarioId = keyof typeof INVESTIGATION_SCENARIOS;
@@ -75,9 +93,10 @@ export const ProtocolFlow = () => {
   const [activeFlow, setActiveFlow] = useState<string>(Object.keys(MOCK_PROTOCOL_FLOWS)[0]);
   const [idComponents, setIdComponents] = useState<IdComponent[]>([]);
   const [openActor, setOpenActor] = useState<Actor | null>(null);
-  const [viewMode, setViewMode] = useState<'protocol' | 'investigation'>('protocol');
+  const [viewMode, setViewMode] = useState<'protocol' | 'id-investigation' | 'investigation'>('protocol');
   const [investigationScenario, setInvestigationScenario] = useState<ScenarioId | null>(null);
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [stageDropdownOpen, setStageDropdownOpen] = useState(false);
   const [snapshotIdComponents, setSnapshotIdComponents] = useState<IdComponent[] | null>(null);
   const [fullIdComponents, setFullIdComponents] = useState<IdComponent[] | null>(null);
   const [idSource, setIdSource] = useState<'current' | 'full'>('current');
@@ -268,7 +287,7 @@ export const ProtocolFlow = () => {
   };
 
   const agentIdPanel = (
-    <aside className="w-[650px] min-w-[650px] border-l border-primary/10 bg-background/95 p-5 overflow-y-auto">
+    <aside style={{ width: RIGHT_PANEL_WIDTH, minWidth: RIGHT_PANEL_WIDTH }} className="border-l border-primary/10 bg-background/95 p-5 overflow-y-auto">
       <div className="sticky top-0 space-y-4">
         <div className="rounded-3xl border border-primary/20 bg-background/95 overflow-hidden shadow-xl">
           <div className="bg-primary/10 px-4 pt-4 pb-3 border-b border-primary/20 flex items-center gap-3">
@@ -394,6 +413,18 @@ export const ProtocolFlow = () => {
             Protocol Flow
           </button>
           <button
+            onClick={() => setViewMode('id-investigation')}
+            className={cn(
+              "px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2 whitespace-nowrap",
+              viewMode === 'id-investigation'
+                ? "bg-background text-primary shadow-lg ring-1 ring-black/5"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Siren className={cn("w-3.5 h-3.5", viewMode === 'id-investigation' ? "text-primary" : "text-muted-foreground/50")} />
+            Emergency Shutdown
+          </button>
+          <button
             onClick={switchToInvestigation}
             className={cn(
               "px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2 whitespace-nowrap",
@@ -403,7 +434,7 @@ export const ProtocolFlow = () => {
             )}
           >
             <ShieldAlert className={cn("w-3.5 h-3.5", viewMode === 'investigation' ? "text-primary" : "text-muted-foreground/50")} />
-            Incident Response
+            Attack Scenarios
           </button>
         </div>
       </div>
@@ -419,7 +450,7 @@ export const ProtocolFlow = () => {
         ) : viewMode === 'protocol' ? (
           <div className="flex flex-1 min-h-[760px] border-b border-primary/10">
             {/* Left aside: Purpose / Security Outcome / Message Contents */}
-            <aside className="w-[420px] min-w-[420px] border-r border-primary/10 bg-background/95 flex flex-col">
+            <aside style={{ width: LEFT_PANEL_WIDTH, minWidth: LEFT_PANEL_WIDTH }} className="border-r border-primary/10 bg-background/95 flex flex-col">
               <div className="px-5 pt-4 pb-3 border-b border-primary/10">
                 <span className="text-xs font-black tracking-[0.2em] uppercase text-primary">Current Step Details</span>
               </div>
@@ -500,26 +531,36 @@ export const ProtocolFlow = () => {
             </aside>
 
             {/* MAIN STAGE — protocol mode */}
-            <div className="relative flex-1 p-8 bg-gradient-to-b from-muted/5 to-transparent overflow-hidden min-h-[680px]" onClick={() => setOpenActor(null)}>
+            <div className="relative flex-1 p-8 bg-gradient-to-b from-muted/5 to-transparent overflow-hidden min-h-[680px]" onClick={() => { setOpenActor(null); setStageDropdownOpen(false); }}>
               {/* Protocol selector */}
               <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2" onClick={e => e.stopPropagation()}>
                 <span className="text-xs font-black uppercase tracking-[0.2em] text-primary">Select protocol type</span>
-                <div className="flex bg-muted/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm">
-                  {Object.keys(MOCK_PROTOCOL_FLOWS).map((flow) => (
-                    <button
-                      key={flow}
-                      onClick={() => setActiveFlow(flow)}
-                      className={cn(
-                        "px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-between gap-3 whitespace-nowrap",
-                        activeFlow === flow
-                          ? "bg-background text-primary shadow-lg ring-1 ring-black/5"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <LayoutGrid className={cn("w-3.5 h-3.5", activeFlow === flow ? "text-primary" : "text-muted-foreground/50")} />
-                      {flow}
-                    </button>
-                  ))}
+                <div className="relative">
+                  <button
+                    onClick={() => setStageDropdownOpen(prev => !prev)}
+                    className="flex items-center gap-3 bg-muted/30 px-5 py-2 rounded-xl border border-border/50 backdrop-blur-sm text-[10px] font-black uppercase tracking-widest text-primary hover:bg-muted/50 transition-colors"
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5 text-primary" />
+                    {activeFlow}
+                    <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", stageDropdownOpen && "rotate-180")} />
+                  </button>
+                  {stageDropdownOpen && (
+                    <div className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 bg-background border border-border/60 rounded-xl overflow-hidden shadow-xl z-40 min-w-full">
+                      {Object.keys(MOCK_PROTOCOL_FLOWS).map((flow) => (
+                        <button
+                          key={flow}
+                          onClick={() => { setActiveFlow(flow); setStageDropdownOpen(false); }}
+                          className={cn(
+                            "w-full px-5 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition-colors whitespace-nowrap flex items-center gap-3",
+                            activeFlow === flow ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                          )}
+                        >
+                          <LayoutGrid className={cn("w-3.5 h-3.5 shrink-0", activeFlow === flow ? "text-primary" : "text-muted-foreground/50")} />
+                          {flow}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -639,11 +680,78 @@ export const ProtocolFlow = () => {
 
             {agentIdPanel}
           </div>
+        ) : viewMode === 'id-investigation' ? (
+          /* INVESTIGATION MODE — full agent ID view */
+          <div className="flex flex-1 min-h-[760px] border-b border-primary/10">
+            <div className="flex-1 flex flex-col gap-6 p-8 overflow-y-auto">
+              <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Agent ID Components</div>
+              <div className="grid grid-cols-2 gap-4">
+                {idComponentGroups.map((group) => {
+                  const isOpen = openIdGroups[group.title];
+                  return (
+                    <div key={group.title} className="rounded-3xl border border-primary/10 bg-background/80 overflow-hidden shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => setOpenIdGroups(prev => ({ ...prev, [group.title]: !prev[group.title] }))}
+                        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-[11px] font-black uppercase tracking-[0.2em] text-primary bg-primary/5 hover:bg-primary/10 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <svg className="w-9 h-9" viewBox="0 0 32 32" aria-hidden="true">
+                            <circle cx="16" cy="16" r="12" fill="none" stroke="rgba(148, 163, 184, 0.18)" strokeWidth="6" />
+                            <circle
+                              cx="16" cy="16" r="12" fill="none"
+                              stroke={getProgressColor(getGroupProgress(group))}
+                              strokeWidth="6" strokeLinecap="round"
+                              strokeDasharray={progressCircumference}
+                              strokeDashoffset={progressCircumference * (1 - getGroupProgress(group))}
+                              transform="rotate(-90 16 16)"
+                            />
+                          </svg>
+                          <span>{group.title}</span>
+                        </div>
+                        <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isOpen ? "rotate-180" : "rotate-0")} />
+                      </button>
+                      {isOpen && (
+                        <div className="space-y-2 px-4 pb-4 pt-2">
+                          {group.items.map((comp, idx) => (
+                            <div
+                              key={`id-inv-${group.title}-${comp.label}-${idx}`}
+                              onMouseEnter={(e) => comp.active && showTooltip(e, `${comp.label} = ${comp.value}`)}
+                              onMouseLeave={hideTooltip}
+                              className={cn(
+                                "flex items-center gap-2 px-3 py-2 rounded-md border transition-all duration-300",
+                                comp.active ? "bg-primary/5 border-primary/20 shadow-sm" : "bg-muted/10 border-transparent opacity-40 grayscale"
+                              )}
+                            >
+                              {comp.active ? (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                              ) : (
+                                <Circle className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              )}
+                              <span className={cn("text-[10px] font-bold uppercase tracking-wider", comp.active ? "text-foreground" : "text-muted-foreground")}>
+                                {comp.label}
+                              </span>
+                              {comp.active && (
+                                <span className="ml-auto text-[9px] font-mono text-muted-foreground truncate max-w-[180px]">{comp.value}</span>
+                              )}
+                            </div>
+                          ))}
+                          {group.items.length === 0 && (
+                            <div className="px-2 py-2 text-[10px] text-muted-foreground italic">No items in this group.</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         ) : (
           /* INVESTIGATION VIEW */
           <div className="flex flex-1 min-h-[760px] border-b border-primary/10">
             {/* Left aside: Attack Scenario */}
-            <aside className="w-[380px] min-w-[380px] border-r border-primary/10 bg-background/95 flex flex-col">
+            <aside style={{ width: LEFT_PANEL_WIDTH, minWidth: LEFT_PANEL_WIDTH }} className="border-r border-primary/10 bg-background/95 flex flex-col">
               <div className="px-5 pt-4 pb-3 border-b border-primary/10">
                 <span className="text-xs font-black tracking-[0.2em] uppercase text-primary">Attack Scenario</span>
               </div>
@@ -670,26 +778,36 @@ export const ProtocolFlow = () => {
             </aside>
 
             {/* Main stage */}
-            <div className="relative flex-1 bg-gradient-to-b from-muted/5 to-transparent flex flex-col min-h-[680px]">
+            <div className="relative flex-1 bg-gradient-to-b from-muted/5 to-transparent flex flex-col min-h-[680px]" onClick={() => setStageDropdownOpen(false)}>
               {/* Scenario selector at top center */}
               <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2" onClick={e => e.stopPropagation()}>
                 <span className="text-xs font-black uppercase tracking-[0.2em] text-primary">Select scenario</span>
-                <div className="flex bg-muted/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm">
-                  {(Object.keys(INVESTIGATION_SCENARIOS) as ScenarioId[]).map((id) => (
-                    <button
-                      key={id}
-                      onClick={() => setInvestigationScenario(prev => prev === id ? null : id)}
-                      className={cn(
-                        "px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2 whitespace-nowrap",
-                        investigationScenario === id
-                          ? "bg-background text-primary shadow-lg ring-1 ring-black/5"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <ShieldAlert className={cn("w-3.5 h-3.5", investigationScenario === id ? "text-primary" : "text-muted-foreground/50")} />
-                      {INVESTIGATION_SCENARIOS[id].label}
-                    </button>
-                  ))}
+                <div className="relative">
+                  <button
+                    onClick={() => setStageDropdownOpen(prev => !prev)}
+                    className="flex items-center gap-3 bg-muted/30 px-5 py-2 rounded-xl border border-border/50 backdrop-blur-sm text-[10px] font-black uppercase tracking-widest text-primary hover:bg-muted/50 transition-colors"
+                  >
+                    <ShieldAlert className="w-3.5 h-3.5 text-primary" />
+                    {investigationScenario ? INVESTIGATION_SCENARIOS[investigationScenario].label : 'Select scenario'}
+                    <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", stageDropdownOpen && "rotate-180")} />
+                  </button>
+                  {stageDropdownOpen && (
+                    <div className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 bg-background border border-border/60 rounded-xl overflow-hidden shadow-xl z-40 min-w-full">
+                      {(Object.keys(INVESTIGATION_SCENARIOS) as ScenarioId[]).map((id) => (
+                        <button
+                          key={id}
+                          onClick={() => { setInvestigationScenario(id); setStageDropdownOpen(false); }}
+                          className={cn(
+                            "w-full px-5 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition-colors whitespace-nowrap flex items-center gap-3",
+                            investigationScenario === id ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                          )}
+                        >
+                          <ShieldAlert className={cn("w-3.5 h-3.5 shrink-0", investigationScenario === id ? "text-primary" : "text-muted-foreground/50")} />
+                          {INVESTIGATION_SCENARIOS[id].label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
