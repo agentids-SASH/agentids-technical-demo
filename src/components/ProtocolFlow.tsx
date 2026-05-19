@@ -937,8 +937,6 @@ export const ProtocolFlow = () => {
                 );
               })}
             </div>
-
-            {agentIdPanel}
           </div>
         ) : (
           /* INVESTIGATION VIEW */
