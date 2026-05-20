@@ -36,14 +36,13 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
     description: 'Deployer sends a natural language prompt to the active Agent to transfer 1000 USD between two of their bank accounts.',
     payload: {
       deployer_prompt: 'Transfer 1000 USD from my checking account to my savings account',
-      prompt_hash: '[hash of the prompt]',
       receiving_service: 'bank.com',
       deployer_identifier_on_service: 'deployer\'s username on bank.com',
       deployer_identifier: 'deployer\'s username on provider.net',
       deployer_accountability_id: 'Jane Doe',
     },
-    accomplishment: 'Elements of the agent ID will bind to this prompt by referencing its hash.',
-    accomplishment_title: 'ID elements can bind to the prompt'
+    accomplishment: 'Elements of the agent ID will bind to this request through singed attestations.',
+    accomplishment_title: 'ID elements can bind to this request'
   },
   {
     id: 3,
@@ -74,7 +73,7 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
       foundation_model_identifier: 'Commerical ModelName_4.2',
       developer_identifier: 'LLM Developer XYZ',
       foundation_model_safety_evidence: 'LLMDevXYZ.org/commercial_modelname_4_2_safety_report',
-      developer_attestation: 'signed: prompt_hash + developer information'
+      developer_attestation: 'signed: prior attestion + developer information'
     },
     accomplishment: 'The developer gives a signed attestation about the model used by the AI agent.',
     accomplishment_title: 'Add developer\'s information to agent ID'
@@ -91,7 +90,7 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
       provider_security_evidence: 'provider.net/security_evidence/agent_instance_12345',
       agent_instance_identifier: 'agent_instance_12345',
       agent_instance_shutdown_command: 'code: 5559',
-      provider_attestation: 'signed: prompt_hash + provider information'
+      provider_attestation: 'signed: prior attestion + provider information'
     },
     accomplishment: 'The provider gives a signed attestation about its own identity and the presence of an emergency shutdown mechanism.',
     accomplishment_title: 'Add provider\'s information to agent ID'
@@ -255,7 +254,6 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
     description: 'Deployer sends a natural language prompt to the active Agent to transfer 1000 USD between two of their bank accounts.',
     payload: {
       deployer_prompt: 'Transfer 1000 USD from my checking account to my savings account',
-      prompt_hash: '[hash of the prompt]',
       receiving_service: 'bank.com',
       deployer_identifier: 'deployer\'s username on provider.net',
       deployer_accountability_id: 'Jane Doe',
@@ -575,7 +573,7 @@ export class MockProtocolSource implements ProtocolSource {
         { label: 'Deployer Accountability ID', value: 'Jane Doe', active: stepIdx >= 2 },
         { label: 'Provider Identifier', value: 'provider \#202', active: stepIdx >= 5 },
         { label: 'Provider Security Evidence', value: 'provider \#202', active: stepIdx >= 5 },
-        { label: 'Prompt Hash', value: '[hash of the prompt]', active: stepIdx >= 2 },
+        { label: 'Signed Attestions', value: 'nested signed attestations', active: stepIdx >= 2 },
         { label: 'Developer Identifier', value: 'LLM Developer XYZ', active: stepIdx >= 4 },
         { label: 'Foundation Model Identifier', value: 'foundation model name', active: stepIdx >= 4 },
         { label: 'Foundation Model Safety Evidence', value: 'foundation model safety evidence', active: stepIdx >= 4 },
@@ -590,7 +588,7 @@ export class MockProtocolSource implements ProtocolSource {
         { label: 'Deployer Accountability ID', value: 'Jane Doe', active: stepIdx >= 100 },
         { label: 'Provider Identifier', value: 'provider \#202', active: stepIdx >= 100 },
         { label: 'Provider Security Evidence', value: 'provider \#202', active: stepIdx >= 100 },
-        { label: 'Prompt Hash', value: '[hash of the prompt]', active: stepIdx >= 100 },
+         { label: 'Signed Attestions', value: 'nested signed attestations', active: stepIdx >= 100 },
         { label: 'Developer Identifier', value: 'LLM Developer XYZ', active: stepIdx >= 100 },
         { label: 'Foundation Model Identifier', value: 'foundation model name', active: stepIdx >= 100 },
         { label: 'Foundation Model Safety Evidence', value: 'foundation model safety evidence', active: stepIdx >= 100 },
@@ -605,7 +603,7 @@ export class MockProtocolSource implements ProtocolSource {
         { label: 'Deployer Accountability ID', value: 'Jane Doe', active: stepIdx >= 2 },
         { label: 'Provider Identifier', value: 'provider \#202', active: stepIdx >= 5 },
         { label: 'Provider Security Evidence', value: 'provider \#202', active: stepIdx >= 5 },
-        { label: 'Prompt Hash', value: '[hash of the prompt]', active: stepIdx >= 2 },
+         { label: 'Signed Attestions', value: 'nested signed attestations', active: stepIdx >= 2 },
         { label: 'Developer Identifier', value: 'LLM Developer XYZ', active: stepIdx >= 4 },
         { label: 'Foundation Model Identifier', value: 'foundation model name', active: stepIdx >= 4 },
         { label: 'Foundation Model Safety Evidence', value: 'foundation model safety evidence', active: stepIdx >= 4 },

@@ -402,7 +402,7 @@ export const ProtocolFlow = () => {
     },
     {
       title: 'Can I trust the agent and the agent ID?',
-      labels: ['Foundation Model Safety Evidence', 'Provider Security Evidence', 'Prompt Hash'],
+      labels: ['Foundation Model Safety Evidence', 'Provider Security Evidence', 'Signed Attestions'],
     },
     {
       title: 'What is the agent authorized to do?',
