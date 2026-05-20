@@ -178,7 +178,7 @@ const INVESTIGATION_SCENARIOS = {
 type ScenarioId = keyof typeof INVESTIGATION_SCENARIOS;
 
 const ActorIcon = ({ type, active }: { type: Actor; active?: boolean; }) => {
-  const props = { className: cn("w-14 h-14 transition-all duration-700", active ? "text-primary scale-110" : "text-muted-foreground/60") };
+  const props = { className: cn("w-7 h-7 md:w-14 md:h-14 transition-all duration-700", active ? "text-primary scale-110" : "text-muted-foreground/60") };
   switch (type) {
     case 'DEVELOPER': return <Code {...props} />;
     case 'DEPLOYER': return <User {...props} />;
@@ -191,7 +191,7 @@ const ActorIcon = ({ type, active }: { type: Actor; active?: boolean; }) => {
 };
 
 const ShutdownActorIcon = ({ type, active }: { type: ShutdownActor; active?: boolean }) => {
-  const props = { className: cn("w-14 h-14 transition-all duration-700", active ? "text-destructive scale-110" : "text-muted-foreground/60") };
+  const props = { className: cn("w-7 h-7 md:w-14 md:h-14 transition-all duration-700", active ? "text-destructive scale-110" : "text-muted-foreground/60") };
   switch (type) {
     case 'PROVIDER':  return <Wrench {...props} />;
     case 'AGENT':     return <Bot {...props} />;
@@ -216,6 +216,15 @@ export const ProtocolFlow = () => {
   const [snapshotIdComponents, setSnapshotIdComponents] = useState<IdComponent[] | null>(null);
   const [fullIdComponents, setFullIdComponents] = useState<IdComponent[] | null>(null);
   const [idSource, setIdSource] = useState<'current' | 'full'>('current');
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
 
   const showTooltip = (e: React.MouseEvent, text: string) => {
     setTooltip({ text, x: e.clientX, y: e.clientY });
@@ -301,14 +310,21 @@ export const ProtocolFlow = () => {
     return () => document.removeEventListener('mousedown', handleDocumentClick);
   }, []);
 
-  const actorCoords: Record<Actor, { x: number, y: number; }> = useMemo(() => ({
-    AGENT: { x: 40, y: 50 },
-    DEVELOPER: { x: 20, y: 75 },
-    PROVIDER: { x: 20, y: 50 },
-    DEPLOYER: { x: 20, y: 20 },
-    SERVICE: { x: 90, y: 50 },
-    SERVICE_LOG: { x: 90, y: 75 },
-  } as Record<Actor, { x: number, y: number; }>), []);
+  const actorCoords: Record<Actor, { x: number, y: number; }> = useMemo(() => (isMobile ? {
+    AGENT:      { x: 10, y: 50 },
+    DEVELOPER:  { x: 4,  y: 80 },
+    PROVIDER:   { x: 4,  y: 50 },
+    DEPLOYER:   { x: 4,  y: 10 },
+    SERVICE:    { x: 18, y: 50 },
+    SERVICE_LOG:{ x: 18, y: 80 },
+  } : {
+    AGENT:      { x: 40, y: 50 },
+    DEVELOPER:  { x: 20, y: 75 },
+    PROVIDER:   { x: 20, y: 50 },
+    DEPLOYER:   { x: 20, y: 20 },
+    SERVICE:    { x: 90, y: 50 },
+    SERVICE_LOG:{ x: 90, y: 75 },
+  }) as Record<Actor, { x: number, y: number; }>, [isMobile]);
 
   const getActorPopupPlacement = (coord: { x: number; y: number; }) => {
     const horizontal = coord.x <= 20
@@ -341,17 +357,28 @@ export const ProtocolFlow = () => {
 
   const shutdownStep = EMERGENCY_SHUTDOWN_STEPS[shutdownStepIdx];
 
+  const resolvedShutdownActors = useMemo((): Record<ShutdownActor, { label: string; x: number; y: number }> =>
+    isMobile ? {
+      PROVIDER:  { label: 'Provider',  x: 8,  y: 50 },
+      AGENT:     { label: 'Agent',     x: 15, y: 50 },
+      BANK:      { label: 'Bank',      x: 32, y: 30 },
+      BANK_2:    { label: 'Bank 2',    x: 32, y: 50 },
+      BANK_3:    { label: 'Bank 3',    x: 32, y: 67 },
+      REGULATOR: { label: 'Regulator', x: 43, y: 50 },
+    } : SHUTDOWN_ACTORS
+  , [isMobile]);
+
   const shutdownArrows = useMemo(() => {
-    const start = SHUTDOWN_ACTORS[shutdownStep.sender];
+    const start = resolvedShutdownActors[shutdownStep.sender];
     const receivers = [shutdownStep.receiver, ...(shutdownStep.additionalReceivers ?? [])];
     return receivers.map(r => {
-      const end = SHUTDOWN_ACTORS[r];
+      const end = resolvedShutdownActors[r];
       const midX = (start.x + end.x) / 2;
       const midY = (start.y + end.y) / 2;
       const angle = Math.atan2(end.y - start.y, end.x - start.x) * (180 / Math.PI);
       return { start, end, midX, midY, angle, key: r };
     });
-  }, [shutdownStep]);
+  }, [shutdownStep, resolvedShutdownActors]);
 
   const idGroupDefinitions = useMemo(() => [
     {
@@ -586,14 +613,14 @@ export const ProtocolFlow = () => {
               </div>
               <div className="flex flex-col gap-2 p-5 pb-3 md:h-[300px] md:min-h-[300px]">
                 <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Purpose of Current Step</div>
-                <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto">
+                <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto mx-4 md:mx-0">
                   <p className="text-[10px] font-black uppercase tracking-widest text-foreground/50 mb-1">{currentStep.title}</p>
                   <p className="text-sm text-foreground/80 leading-relaxed">{currentStep.description}</p>
                 </div>
               </div>
               <div className="flex flex-col gap-2 px-5 pb-3 md:h-[220px] md:min-h-[220px]">
                 <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Security Outcome</div>
-                <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto">
+                <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto mx-4 md:mx-0">
                   <p className="text-[10px] font-black uppercase tracking-widest text-foreground/50 mb-1">{currentStep.accomplishment_title}</p>
                   <p className="text-sm text-foreground/80 leading-relaxed">{currentStep.accomplishment}</p>
                 </div>
@@ -761,15 +788,15 @@ export const ProtocolFlow = () => {
                           setOpenActor(prev => prev === actor ? null : (actor as Actor));
                         }}
                         className={cn(
-                          "relative p-6 rounded-2xl bg-card border-2 transition-all duration-700 z-10 focus:outline-none",
-                          isActive ? "border-primary shadow-lg scale-110 ring-4 ring-primary/5" : "border-muted/50 scale-95",
+                          "relative p-2 md:p-6 rounded-xl md:rounded-2xl bg-card border-2 transition-all duration-700 z-10 focus:outline-none",
+                          isActive ? "border-primary shadow-lg scale-110 ring-2 md:ring-4 ring-primary/5" : "border-muted/50 scale-95",
                           isOpen && "shadow-[0_12px_35px_rgba(59,130,246,0.38)] ring-2 ring-primary/15"
                         )}
                       >
                         <ActorIcon type={actor as Actor} active={isActive} />
                       </button>
                       <div className={cn(
-                        "absolute -bottom-7 whitespace-nowrap px-2.5 py-0.5 rounded-full border shadow-md bg-background transition-all duration-700 z-0",
+                        "absolute -bottom-5 md:-bottom-7 whitespace-nowrap px-1.5 md:px-2.5 py-0.5 rounded-full border shadow-md bg-background transition-all duration-700 z-0",
                         isActive ? "border-primary scale-100" : "border-muted scale-95"
                       )}>
                         <span className={cn(
@@ -820,13 +847,13 @@ export const ProtocolFlow = () => {
               </div>
               <div className="flex flex-col gap-2 p-5 pb-3 md:h-[220px] md:min-h-[220px]">
                 <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Current Step</div>
-                <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto">
+                <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto mx-4 md:mx-0">
                   <p className="text-sm font-black text-foreground leading-relaxed">{shutdownStep.title}</p>
                 </div>
               </div>
               <div className="flex flex-col gap-2 px-5 pb-5 flex-1 min-h-0">
                 <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Step Details</div>
-                <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto">
+                <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto mx-4 md:mx-0">
                   <p className="text-sm text-foreground/80 leading-relaxed">{shutdownStep.description}</p>
                 </div>
               </div>
@@ -863,8 +890,8 @@ export const ProtocolFlow = () => {
               {/* Trust Mesh Background */}
               <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.18]">
                 {SHUTDOWN_MESH.map(([a, b]) => {
-                  const from = SHUTDOWN_ACTORS[a];
-                  const to = SHUTDOWN_ACTORS[b];
+                  const from = resolvedShutdownActors[a];
+                  const to = resolvedShutdownActors[b];
                   return (
                     <line
                       key={`${a}-${b}`}
@@ -898,7 +925,7 @@ export const ProtocolFlow = () => {
               </svg>
 
               {/* Actors */}
-              {(Object.entries(SHUTDOWN_ACTORS) as [ShutdownActor, { label: string; x: number; y: number }][]).map(([actor, coord]) => {
+              {(Object.entries(resolvedShutdownActors) as [ShutdownActor, { label: string; x: number; y: number }][]).map(([actor, coord]) => {
                 const isActive = shutdownStep.sender === actor || shutdownStep.receiver === actor || (shutdownStep.additionalReceivers?.includes(actor) ?? false);
                 return (
                   <div
@@ -908,18 +935,18 @@ export const ProtocolFlow = () => {
                   >
                     <div className="relative flex flex-col items-center">
                       <div className={cn(
-                        "relative p-6 rounded-2xl bg-card border-2 transition-all duration-700",
-                        isActive ? "border-destructive shadow-lg scale-110 ring-4 ring-destructive/10" : "border-muted/50 scale-95"
+                        "relative p-2 md:p-6 rounded-xl md:rounded-2xl bg-card border-2 transition-all duration-700",
+                        isActive ? "border-destructive shadow-lg scale-110 ring-2 md:ring-4 ring-destructive/10" : "border-muted/50 scale-95"
                       )}>
                         <ShutdownActorIcon type={actor} active={isActive} />
                         {actor === 'AGENT' && shutdownStepIdx === EMERGENCY_SHUTDOWN_STEPS.length - 1 && (
-                          <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-destructive/10 animate-in fade-in duration-500">
-                            <X className="w-14 h-14 text-destructive stroke-[2.5]" />
+                          <div className="absolute inset-0 flex items-center justify-center rounded-xl md:rounded-2xl bg-destructive/10 animate-in fade-in duration-500">
+                            <X className="w-7 h-7 md:w-14 md:h-14 text-destructive stroke-[2.5]" />
                           </div>
                         )}
                       </div>
                       <div className={cn(
-                        "absolute -bottom-7 whitespace-nowrap px-2.5 py-0.5 rounded-full border shadow-md bg-background transition-all duration-700",
+                        "absolute -bottom-5 md:-bottom-7 whitespace-nowrap px-1.5 md:px-2.5 py-0.5 rounded-full border shadow-md bg-background transition-all duration-700",
                         isActive ? "border-destructive scale-100" : "border-muted scale-95"
                       )}>
                         <span className={cn(
