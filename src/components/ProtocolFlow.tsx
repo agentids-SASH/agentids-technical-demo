@@ -5,9 +5,6 @@ import type { Actor, ProtocolStep, IdComponent } from '../lib/protocol/types';
 import { cn } from '../lib/utils';
 import { MockProtocolSource, MOCK_PROTOCOL_FLOWS } from '../lib/protocol/mock-source';
 
-// Adjust these to control panel widths and give the stage more/less horizontal space
-const LEFT_PANEL_WIDTH = 320;
-const RIGHT_PANEL_WIDTH = 520;
 
 type ShutdownActor = 'PROVIDER' | 'AGENT' | 'BANK' | 'BANK_2' | 'BANK_3' | 'REGULATOR';
 
@@ -420,7 +417,7 @@ export const ProtocolFlow = () => {
   };
 
   const agentIdPanel = (
-    <aside style={{ width: RIGHT_PANEL_WIDTH, minWidth: RIGHT_PANEL_WIDTH }} className="border-l border-primary/10 bg-background/95 p-5 overflow-y-auto">
+    <aside className="order-3 w-full md:w-[520px] md:min-w-[520px] border-t border-primary/10 md:border-t-0 md:border-l bg-background/95 p-5 overflow-y-auto">
       <div className="sticky top-0 space-y-4">
         <div className="rounded-3xl border border-primary/20 bg-background/95 overflow-hidden shadow-xl">
           <div className="bg-primary/10 px-4 pt-4 pb-3 border-b border-primary/20 flex items-center gap-3">
@@ -518,25 +515,25 @@ export const ProtocolFlow = () => {
   );
 
   return (
-    <div ref={flowRef} className="flex flex-col h-full max-w-[2200px] mx-auto p-6 gap-6">
+    <div ref={flowRef} className="flex flex-col max-w-[2200px] mx-auto p-3 md:p-6 gap-4 md:gap-6">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 mb-2">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between px-3 md:px-6 mb-2">
         <div className="flex items-baseline gap-4">
-          <h1 className="text-3xl font-black tracking-tighter text-foreground italic leading-none">
+          <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-foreground italic leading-none">
             AI AGENT ID TESTBED
           </h1>
-          <div className="flex items-center gap-2 border-l pl-4 border-border h-4">
+          <div className="hidden md:flex items-center gap-2 border-l pl-4 border-border h-4">
             <Activity className="w-3 h-3 text-primary animate-pulse" />
             <span className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase">Proof of Concept Visualization</span>
           </div>
         </div>
 
         {/* View mode toggle */}
-        <div className="flex bg-muted/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm">
+        <div className="flex flex-wrap gap-1 md:flex-nowrap md:gap-0 bg-muted/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm">
           <button
             onClick={() => setViewMode('protocol')}
             className={cn(
-              "px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2 whitespace-nowrap",
+              "px-3 py-1.5 md:px-5 md:py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2 whitespace-nowrap",
               viewMode === 'protocol'
                 ? "bg-background text-primary shadow-lg ring-1 ring-black/5"
                 : "text-muted-foreground hover:text-foreground"
@@ -548,7 +545,7 @@ export const ProtocolFlow = () => {
           <button
             onClick={() => setViewMode('id-investigation')}
             className={cn(
-              "px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2 whitespace-nowrap",
+              "px-3 py-1.5 md:px-5 md:py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2 whitespace-nowrap",
               viewMode === 'id-investigation'
                 ? "bg-background text-primary shadow-lg ring-1 ring-black/5"
                 : "text-muted-foreground hover:text-foreground"
@@ -560,7 +557,7 @@ export const ProtocolFlow = () => {
           <button
             onClick={switchToInvestigation}
             className={cn(
-              "px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2 whitespace-nowrap",
+              "px-3 py-1.5 md:px-5 md:py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2 whitespace-nowrap",
               viewMode === 'investigation'
                 ? "bg-background text-primary shadow-lg ring-1 ring-black/5"
                 : "text-muted-foreground hover:text-foreground"
@@ -572,7 +569,7 @@ export const ProtocolFlow = () => {
         </div>
       </div>
 
-      <div className="flex-1 bg-card border rounded-3xl overflow-hidden shadow-2xl flex flex-col min-h-[1050px] ring-1 ring-white/5">
+      <div className="flex-1 bg-card border rounded-3xl overflow-hidden shadow-2xl flex flex-col md:min-h-[1050px] ring-1 ring-white/5">
         {!currentStep ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground animate-pulse">
             <div className="flex flex-col items-center gap-4">
@@ -581,20 +578,20 @@ export const ProtocolFlow = () => {
             </div>
           </div>
         ) : viewMode === 'protocol' ? (
-          <div className="flex flex-1 min-h-[760px] border-b border-primary/10">
+          <div className="flex flex-col md:flex-row flex-1 border-b border-primary/10">
             {/* Left aside: Purpose / Security Outcome / Message Contents */}
-            <aside style={{ width: LEFT_PANEL_WIDTH, minWidth: LEFT_PANEL_WIDTH }} className="border-r border-primary/10 bg-background/95 flex flex-col">
+            <aside className="order-2 md:order-none w-full md:w-[320px] md:min-w-[320px] border-b border-primary/10 md:border-b-0 md:border-r bg-background/95 flex flex-col">
               <div className="px-5 pt-4 pb-3 border-b border-primary/10">
                 <span className="text-xs font-black tracking-[0.2em] uppercase text-primary">Current Step Details</span>
               </div>
-              <div className="flex flex-col gap-2 p-5 pb-3 h-[300px] min-h-[300px]">
+              <div className="flex flex-col gap-2 p-5 pb-3 md:h-[300px] md:min-h-[300px]">
                 <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Purpose of Current Step</div>
                 <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto">
                   <p className="text-[10px] font-black uppercase tracking-widest text-foreground/50 mb-1">{currentStep.title}</p>
                   <p className="text-sm text-foreground/80 leading-relaxed">{currentStep.description}</p>
                 </div>
               </div>
-              <div className="flex flex-col gap-2 px-5 pb-3 h-[220px] min-h-[220px]">
+              <div className="flex flex-col gap-2 px-5 pb-3 md:h-[220px] md:min-h-[220px]">
                 <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Security Outcome</div>
                 <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto">
                   <p className="text-[10px] font-black uppercase tracking-widest text-foreground/50 mb-1">{currentStep.accomplishment_title}</p>
@@ -638,12 +635,12 @@ export const ProtocolFlow = () => {
             </aside>
 
             {/* Protocol step nav */}
-            <aside className="w-[128px] min-w-[128px] border-r border-primary/10 flex flex-col">
-              <div className="px-2 pt-4 pb-3 border-b border-primary/10 flex justify-center">
-                <span className="text-xs font-black uppercase tracking-[0.2em] text-primary text-center">Step</span>
+            <aside className="order-1 md:order-none w-full md:w-[128px] md:min-w-[128px] border-b border-primary/10 md:border-b-0 md:border-r flex flex-row md:flex-col">
+              <div className="px-4 md:px-2 py-3 md:pt-4 md:pb-3 border-r border-primary/10 md:border-r-0 md:border-b flex items-center md:justify-center shrink-0">
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-primary">Step</span>
               </div>
-              <div className="relative flex flex-col items-center gap-1.5 px-2 py-2">
-                <div className="absolute left-1/2 top-4 bottom-4 w-px bg-muted/20 -translate-x-1/2" />
+              <div className="relative flex flex-row md:flex-col items-center gap-1.5 px-2 py-2 overflow-x-auto">
+                <div className="absolute hidden md:block left-1/2 top-4 bottom-4 w-px bg-muted/20 -translate-x-1/2" />
                 {steps.map((step, idx) => (
                   <button
                     key={step.id}
@@ -664,7 +661,7 @@ export const ProtocolFlow = () => {
             </aside>
 
             {/* MAIN STAGE — protocol mode */}
-            <div className="relative flex-1 p-8 bg-gradient-to-b from-muted/5 to-transparent overflow-hidden min-h-[680px]" onClick={() => { setOpenActor(null); setStageDropdownOpen(false); }}>
+            <div className="order-1 md:order-none relative flex-1 p-8 bg-gradient-to-b from-muted/5 to-transparent overflow-hidden min-h-[320px] md:min-h-[680px]" onClick={() => { setOpenActor(null); setStageDropdownOpen(false); }}>
               {/* Protocol selector */}
               <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2" onClick={e => e.stopPropagation()}>
                 <span className="text-xs font-black uppercase tracking-[0.2em] text-primary">Select protocol type</span>
@@ -815,13 +812,13 @@ export const ProtocolFlow = () => {
           </div>
         ) : viewMode === 'id-investigation' ? (
           /* EMERGENCY SHUTDOWN VIEW */
-          <div className="flex flex-1 min-h-[760px] border-b border-primary/10">
+          <div className="flex flex-col md:flex-row flex-1 border-b border-primary/10">
             {/* Left aside: Step details */}
-            <aside style={{ width: LEFT_PANEL_WIDTH, minWidth: LEFT_PANEL_WIDTH }} className="border-r border-primary/10 bg-background/95 flex flex-col">
+            <aside className="order-2 md:order-none w-full md:w-[320px] md:min-w-[320px] border-b border-primary/10 md:border-b-0 md:border-r bg-background/95 flex flex-col">
               <div className="px-5 pt-4 pb-3 border-b border-primary/10">
                 <span className="text-xs font-black tracking-[0.2em] uppercase text-primary">Current Step Details</span>
               </div>
-              <div className="flex flex-col gap-2 p-5 pb-3 h-[220px] min-h-[220px]">
+              <div className="flex flex-col gap-2 p-5 pb-3 md:h-[220px] md:min-h-[220px]">
                 <div className="text-[10px] font-black uppercase tracking-[0.35em] text-primary">Current Step</div>
                 <div className="rounded-3xl border border-primary/10 bg-background/90 p-5 shadow-sm flex-1 overflow-y-auto">
                   <p className="text-sm font-black text-foreground leading-relaxed">{shutdownStep.title}</p>
@@ -836,12 +833,12 @@ export const ProtocolFlow = () => {
             </aside>
 
             {/* Step navigator */}
-            <aside className="w-[128px] min-w-[128px] border-r border-primary/10 flex flex-col">
-              <div className="px-2 pt-4 pb-3 border-b border-primary/10 flex justify-center">
-                <span className="text-xs font-black uppercase tracking-[0.2em] text-primary text-center">Step</span>
+            <aside className="order-1 md:order-none w-full md:w-[128px] md:min-w-[128px] border-b border-primary/10 md:border-b-0 md:border-r flex flex-row md:flex-col">
+              <div className="px-4 md:px-2 py-3 md:pt-4 md:pb-3 border-r border-primary/10 md:border-r-0 md:border-b flex items-center md:justify-center shrink-0">
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-primary">Step</span>
               </div>
-              <div className="relative flex flex-col items-center gap-1.5 px-2 py-2">
-                <div className="absolute left-1/2 top-4 bottom-4 w-px bg-muted/20 -translate-x-1/2" />
+              <div className="relative flex flex-row md:flex-col items-center gap-1.5 px-2 py-2 overflow-x-auto">
+                <div className="absolute hidden md:block left-1/2 top-4 bottom-4 w-px bg-muted/20 -translate-x-1/2" />
                 {EMERGENCY_SHUTDOWN_STEPS.map((step, idx) => (
                   <button
                     key={step.id}
@@ -862,7 +859,7 @@ export const ProtocolFlow = () => {
             </aside>
 
             {/* Stage */}
-            <div className="relative flex-1 p-8 bg-gradient-to-b from-muted/5 to-transparent overflow-hidden min-h-[680px]">
+            <div className="order-1 md:order-none relative flex-1 p-8 bg-gradient-to-b from-muted/5 to-transparent overflow-hidden min-h-[320px] md:min-h-[680px]">
               {/* Trust Mesh Background */}
               <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.18]">
                 {SHUTDOWN_MESH.map(([a, b]) => {
@@ -940,9 +937,9 @@ export const ProtocolFlow = () => {
           </div>
         ) : (
           /* INVESTIGATION VIEW */
-          <div className="flex flex-1 min-h-[760px] border-b border-primary/10">
+          <div className="flex flex-col md:flex-row flex-1 border-b border-primary/10">
             {/* Left aside: Attack Scenario */}
-            <aside style={{ width: LEFT_PANEL_WIDTH, minWidth: LEFT_PANEL_WIDTH }} className="border-r border-primary/10 bg-background/95 flex flex-col">
+            <aside className="order-2 md:order-none w-full md:w-[320px] md:min-w-[320px] border-b border-primary/10 md:border-b-0 md:border-r bg-background/95 flex flex-col">
               <div className="px-5 pt-4 pb-3 border-b border-primary/10">
                 <span className="text-xs font-black tracking-[0.2em] uppercase text-primary">Attack Scenario</span>
               </div>
@@ -969,7 +966,7 @@ export const ProtocolFlow = () => {
             </aside>
 
             {/* Main stage */}
-            <div className="relative flex-1 bg-gradient-to-b from-muted/5 to-transparent flex flex-col min-h-[680px]" onClick={() => setStageDropdownOpen(false)}>
+            <div className="order-1 md:order-none relative flex-1 bg-gradient-to-b from-muted/5 to-transparent flex flex-col min-h-[320px] md:min-h-[680px]" onClick={() => setStageDropdownOpen(false)}>
               {/* Scenario selector at top center */}
               <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2" onClick={e => e.stopPropagation()}>
                 <span className="text-xs font-black uppercase tracking-[0.2em] text-primary">Select scenario</span>
