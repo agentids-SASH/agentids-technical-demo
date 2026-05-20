@@ -9,12 +9,12 @@ import { MockProtocolSource, MOCK_PROTOCOL_FLOWS } from '../lib/protocol/mock-so
 type ShutdownActor = 'PROVIDER' | 'AGENT' | 'BANK' | 'BANK_2' | 'BANK_3' | 'REGULATOR';
 
 const SHUTDOWN_ACTORS: Record<ShutdownActor, { label: string; x: number; y: number }> = {
-  PROVIDER:  { label: 'Provider',  x: 15, y: 50 },
-  AGENT:     { label: 'Agent',     x: 30, y: 50 },
-  BANK:      { label: 'Bank',      x: 62, y: 30 },
-  BANK_2:    { label: 'Bank 2',    x: 62, y: 50 },
-  BANK_3:    { label: 'Bank 3',    x: 62, y: 67 },
-  REGULATOR: { label: 'Regulator', x: 85, y: 50 },
+  PROVIDER:  { label: 'Provider',  x: 15, y: 30 },
+  AGENT:     { label: 'Agent',     x: 30, y: 30 },
+  BANK:      { label: 'Bank',      x: 62, y: 15 },
+  BANK_2:    { label: 'Bank 2',    x: 62, y: 35 },
+  BANK_3:    { label: 'Bank 3',    x: 62, y: 50 },
+  REGULATOR: { label: 'Regulator', x: 85, y: 15 },
 };
 
 const SHUTDOWN_MESH: [ShutdownActor, ShutdownActor][] = [
@@ -32,17 +32,18 @@ const EMERGENCY_SHUTDOWN_STEPS = [
   {
     id: 1,
     title: 'Unathorized agent action',
-    description: 'A bank detects the agent attempting an unauthorized action to transfer money to unknown accounts.',
+    description: 'A compromised agent attempts unauthorized actions to transfer money to unknown accounts across multiple banks.',
     accomplishment_title: '',
     accomplishment: '',
     sender: 'AGENT' as ShutdownActor,
     receiver: 'BANK' as ShutdownActor,
+    additionalReceivers: ['BANK_2' as ShutdownActor, 'BANK_3' as ShutdownActor],
     // payload: { alert_type: 'policy_violation', severity: 'high', timestamp: 'ISO-8601' },
   },
   {
     id: 2,
     title: 'Block and Shutdown Agent',
-    description: 'The bank decides to take protective measures by both blocking the agent & issuing shutdown request.',
+    description: 'One bank detects the problem and decides to take protective measures by both blocking the agent & issuing shutdown request.',
     accomplishment_title: '',
     accomplishment: '',
     sender: 'BANK' as ShutdownActor,
@@ -72,7 +73,7 @@ const EMERGENCY_SHUTDOWN_STEPS = [
   {
     id: 5,
     title: 'Regulator surveys other banks and finds ongoing attacks.',
-    description: 'The regulator asks other banks to check for this malicious activity too.',
+    description: 'The regulator asks other banks to check for this malicious activity too, which is indeed happening at other banks.',
     accomplishment_title: '',
     accomplishment: '',
     sender: 'REGULATOR' as ShutdownActor,
@@ -103,7 +104,7 @@ const EMERGENCY_SHUTDOWN_STEPS = [
    {
     id: 8,
     title: 'Provider shuts down the agent immediately.',
-    description: '',
+    description: 'The shutdown prevents further harm to the bank, and all other potential targets.',
     accomplishment_title: '',
     accomplishment: '',
     sender: 'PROVIDER' as ShutdownActor,
@@ -190,8 +191,8 @@ const ActorIcon = ({ type, active }: { type: Actor; active?: boolean; }) => {
   }
 };
 
-const ShutdownActorIcon = ({ type, active }: { type: ShutdownActor; active?: boolean }) => {
-  const props = { className: cn("w-7 h-7 md:w-14 md:h-14 transition-all duration-700", active ? "text-destructive scale-110" : "text-muted-foreground/60") };
+const ShutdownActorIcon = ({ type, active, red }: { type: ShutdownActor; active?: boolean; red?: boolean }) => {
+  const props = { className: cn("w-7 h-7 md:w-14 md:h-14 transition-all duration-700", active ? (red ? "text-destructive scale-110" : "text-primary scale-110") : "text-muted-foreground/60") };
   switch (type) {
     case 'PROVIDER':  return <Wrench {...props} />;
     case 'AGENT':     return <Bot {...props} />;
@@ -293,12 +294,17 @@ export const ProtocolFlow = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') nextStep();
-      else if (e.key === 'ArrowLeft') prevStep();
+      if (viewMode === 'id-investigation') {
+        if (e.key === 'ArrowRight') setShutdownStepIdx(prev => Math.min(prev + 1, EMERGENCY_SHUTDOWN_STEPS.length - 1));
+        else if (e.key === 'ArrowLeft') setShutdownStepIdx(prev => Math.max(prev - 1, 0));
+      } else {
+        if (e.key === 'ArrowRight') nextStep();
+        else if (e.key === 'ArrowLeft') prevStep();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nextStep, prevStep]);
+  }, [viewMode, nextStep, prevStep]);
 
   useEffect(() => {
     const handleDocumentClick = (event: MouseEvent) => {
@@ -371,12 +377,13 @@ export const ProtocolFlow = () => {
   const shutdownArrows = useMemo(() => {
     const start = resolvedShutdownActors[shutdownStep.sender];
     const receivers = [shutdownStep.receiver, ...(shutdownStep.additionalReceivers ?? [])];
+    const fromAgent = shutdownStep.sender === 'AGENT';
     return receivers.map(r => {
       const end = resolvedShutdownActors[r];
       const midX = (start.x + end.x) / 2;
       const midY = (start.y + end.y) / 2;
       const angle = Math.atan2(end.y - start.y, end.x - start.x) * (180 / Math.PI);
-      return { start, end, midX, midY, angle, key: r };
+      return { start, end, midX, midY, angle, key: r, fromAgent };
     });
   }, [shutdownStep, resolvedShutdownActors]);
 
@@ -910,14 +917,14 @@ export const ProtocolFlow = () => {
                     <line
                       x1={arrow.start.x} y1={arrow.start.y}
                       x2={arrow.end.x} y2={arrow.end.y}
-                      className="stroke-destructive stroke-[1.5px]"
+                      className={cn("stroke-[1.5px]", arrow.fromAgent ? "stroke-destructive" : "stroke-primary")}
                       strokeDasharray="8 6"
                     >
                       <animate attributeName="stroke-dashoffset" from="100" to="0" dur="8s" repeatCount="indefinite" />
                     </line>
                     <polygon
                       points="0,-2.5 4,0 0,2.5"
-                      className="fill-destructive"
+                      className={arrow.fromAgent ? "fill-destructive" : "fill-primary"}
                       transform={`translate(${arrow.midX}, ${arrow.midY}) rotate(${arrow.angle})`}
                     />
                   </g>
@@ -927,6 +934,7 @@ export const ProtocolFlow = () => {
               {/* Actors */}
               {(Object.entries(resolvedShutdownActors) as [ShutdownActor, { label: string; x: number; y: number }][]).map(([actor, coord]) => {
                 const isActive = shutdownStep.sender === actor || shutdownStep.receiver === actor || (shutdownStep.additionalReceivers?.includes(actor) ?? false);
+                const isRed = actor === 'AGENT';
                 return (
                   <div
                     key={actor}
@@ -936,9 +944,11 @@ export const ProtocolFlow = () => {
                     <div className="relative flex flex-col items-center">
                       <div className={cn(
                         "relative p-2 md:p-6 rounded-xl md:rounded-2xl bg-card border-2 transition-all duration-700",
-                        isActive ? "border-destructive shadow-lg scale-110 ring-2 md:ring-4 ring-destructive/10" : "border-muted/50 scale-95"
+                        isActive && isRed  ? "border-destructive shadow-lg scale-110 ring-2 md:ring-4 ring-destructive/10" :
+                        isActive && !isRed ? "border-primary shadow-lg scale-110 ring-2 md:ring-4 ring-primary/10" :
+                        "border-muted/50 scale-95"
                       )}>
-                        <ShutdownActorIcon type={actor} active={isActive} />
+                        <ShutdownActorIcon type={actor} active={isActive} red={isRed} />
                         {actor === 'AGENT' && shutdownStepIdx === EMERGENCY_SHUTDOWN_STEPS.length - 1 && (
                           <div className="absolute inset-0 flex items-center justify-center rounded-xl md:rounded-2xl bg-destructive/10 animate-in fade-in duration-500">
                             <X className="w-7 h-7 md:w-14 md:h-14 text-destructive stroke-[2.5]" />
@@ -947,11 +957,15 @@ export const ProtocolFlow = () => {
                       </div>
                       <div className={cn(
                         "absolute -bottom-5 md:-bottom-7 whitespace-nowrap px-1.5 md:px-2.5 py-0.5 rounded-full border shadow-md bg-background transition-all duration-700",
-                        isActive ? "border-destructive scale-100" : "border-muted scale-95"
+                        isActive && isRed  ? "border-destructive scale-100" :
+                        isActive && !isRed ? "border-primary scale-100" :
+                        "border-muted scale-95"
                       )}>
                         <span className={cn(
                           "font-black text-[9px] tracking-widest uppercase transition-colors duration-700",
-                          isActive ? "text-destructive" : "text-muted-foreground"
+                          isActive && isRed  ? "text-destructive" :
+                          isActive && !isRed ? "text-primary" :
+                          "text-muted-foreground"
                         )}>
                           {coord.label}
                         </span>
