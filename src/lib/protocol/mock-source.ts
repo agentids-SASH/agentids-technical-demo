@@ -21,28 +21,29 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
     title: 'Start Agent Instance',
     sender: 'PROVIDER',
     receiver: 'AGENT',
-    description: 'Provider provisions a compute process to invoke tools and call external services, as appropriate.',
+    description: 'Provider provisions a compute workload to run the agent, invoke tools, and call external services.',
     payload: {
       
     },
-    accomplishment: 'The Provider establishes control over the agent\'s compute process. It can later terminate this process if necessary.',
+    accomplishment: 'The Provider establishes control over the agent\'s compute workload. It can later terminate this workload if necessary.',
     accomplishment_title: 'Provider control over agent instance'
   },
   {
     id: 2,
-    title: 'Initial Prompt',
+    title: 'Prompt the Agent',
     sender: 'DEPLOYER',
     receiver: 'PROVIDER',
     description: 'Deployer sends a natural language prompt to the active Agent to transfer 1000 USD between two of their bank accounts.',
     payload: {
       deployer_prompt: 'Transfer 1000 USD from my checking account to my savings account',
       receiving_service: 'bank.com',
-      deployer_identifier_on_service: 'deployer\'s username on bank.com',
       deployer_identifier: 'deployer\'s username on provider.net',
-      deployer_accountability_id: 'Jane Doe',
+      deployer_identifier_on_service: 'deployer\'s username on bank.com',
+      deployer_accountability_id: 'Jane Doe (encrypted)',
+      deployer_attestation_hash: '',
     },
-    accomplishment: 'Elements of the agent ID will bind to this request through singed attestations.',
-    accomplishment_title: 'ID elements can bind to this request'
+    accomplishment: 'Deployer sends attestation with plaintext and encrypted Agent ID components to the provider',
+    accomplishment_title: 'Deployer\'s Attestation'
   },
   {
     id: 3,
@@ -60,7 +61,7 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
   },
   {
     id: 4,
-    title: 'Developer returns Action Plan & Signed Attestation Return',
+    title: 'Developer returns Action Plan & Attestation',
     sender: 'DEVELOPER',
     receiver: 'PROVIDER',
     description: 'LLM Developer returns a plan for the provider to execute, along with cryptographically signed attestations about the foundation model and its safety testing.',
@@ -73,10 +74,10 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
       foundation_model_identifier: 'Commerical ModelName_4.2',
       developer_identifier: 'LLM Developer XYZ',
       foundation_model_safety_evidence: 'LLMDevXYZ.org/commercial_modelname_4_2_safety_report',
-      developer_attestation: 'signed: prior attestion + developer information'
+      developer_attestation: 'prior attestion + developer information'
     },
-    accomplishment: 'The developer gives a signed attestation about the model used by the AI agent.',
-    accomplishment_title: 'Add developer\'s information to agent ID'
+    accomplishment: 'Developer sends signed attestation about the model and how it responded to the prompt.',
+    accomplishment_title: 'Developer\'s attestation'
   },
   {
     id: 5,
@@ -90,10 +91,10 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
       provider_security_evidence: 'provider.net/security_evidence/agent_instance_12345',
       agent_instance_identifier: 'agent_instance_12345',
       agent_instance_shutdown_command: 'code: 5559',
-      provider_attestation: 'signed: prior attestion + provider information'
+      provider_attestation: 'prior attestion + provider attestation'
     },
-    accomplishment: 'The provider gives a signed attestation about its own identity and the presence of an emergency shutdown mechanism.',
-    accomplishment_title: 'Add provider\'s information to agent ID'
+    accomplishment: 'Provider attestation including safety evidence, instance identifier, and emergency shutdown mechanism.',
+    accomplishment_title: 'Provider Attestation'
   },
   {
     id: 6,
@@ -143,7 +144,7 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
     receiver: 'AGENT',
     description: 'Service issues an authorization token to the agent.',
     payload: {
-      oauth_access_token: 'dpop_at_98f2...',
+      oauth_access_token: '',
       expires_in: 3600,
       granted_scopes: ['transfer_funds', 'recipient_account_type: \'sender_owned\''],
     },
@@ -152,10 +153,10 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
   },
   {
     id: 10,
-    title: 'Agent Performs Action',
+    title: 'Agent Attempts Action',
     sender: 'AGENT',
     receiver: 'SERVICE',
-    description: 'Agent uses the authorization token to perform the action.',
+    description: 'Agent uses the authorization token to attempt the action.',
     payload: {
       action: 'TRANSFER_FUNDS',
       transaction_details: {
@@ -163,11 +164,11 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
         from_account: 'checking',
         to_account: 'savings'
       },
-      oauth_access_token: 'dpop_at_98f2...',
+      oauth_access_token: '',
       agent_id: 'see credential details',
     },
-    accomplishment: 'Cryptographically proven agent successfully executes authorized actions.',
-    accomplishment_title: ''
+    accomplishment: 'Agent ID and OAuth Access Token accompany the request to the service, which can use them to determine whether to authorize the action.',
+    accomplishment_title: 'Agent ID and OAuth Access Token Delivered to Service'
   },
   {
     id: 11,
@@ -239,16 +240,16 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
     title: 'Start Agent Instance',
     sender: 'PROVIDER',
     receiver: 'AGENT',
-    description: 'Provider provisions a compute process to invoke tools and call external services, as appropriate.',
+    description: 'Provider provisions a compute workload to run the agent, invoke tools, and call external services.',
     payload: {
       
     },
-    accomplishment: 'The Provider establishes control over the agent\'s compute process. It can later terminate this process if necessary.',
+    accomplishment: 'The Provider establishes control over the agent\'s compute workload. It can later terminate this workload if necessary.',
     accomplishment_title: 'Provider control over agent instance'
   },
   {
     id: 2,
-    title: 'Initial Prompt',
+    title: 'Prompt the Agent',
     sender: 'DEPLOYER',
     receiver: 'PROVIDER',
     description: 'Deployer sends a natural language prompt to the active Agent to transfer 1000 USD between two of their bank accounts.',
@@ -256,10 +257,11 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
       deployer_prompt: 'Transfer 1000 USD from my checking account to my savings account',
       receiving_service: 'bank.com',
       deployer_identifier: 'deployer\'s username on provider.net',
-      deployer_accountability_id: 'Jane Doe',
+      deployer_accountability_id: 'Jane Doe (encrypted)',
+      deployer_attestation_hash: '',
     },
-    accomplishment: 'Elements of the agent ID will bind to this prompt by referencing its hash.',
-    accomplishment_title: 'ID elements can bind to the prompt'
+    accomplishment: 'Deployer sends attestation with plaintext and encrypted Agent ID components to the provider',
+    accomplishment_title: 'Deployer\'s Attestation'
   },
   {
     id: 3,
@@ -277,10 +279,10 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
   },
   {
     id: 4,
-    title: 'Developer returns Action Plan & Signed Attestation Return',
+    title: 'Developer returns Action Plan & Attestation',
     sender: 'DEVELOPER',
     receiver: 'PROVIDER',
-    description: 'LLM Developer returns a plan for the provider to execute, along with cryptographically signed attestations about the foundation model and its safety testing.',
+    description: 'LLM Developer returns an action plan for the agent and its attestation with information about the foundation model used.',
     payload: {
       action_plan: {
         tool: 'bank_api_call',
@@ -290,10 +292,10 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
       foundation_model_identifier: 'Commerical ModelName_4.2',
       developer_identifier: 'LLM Developer XYZ',
       foundation_model_safety_evidence: 'LLMDevXYZ.org/commercial_modelname_4_2_safety_report',
-      developer_attestation: 'signed: prompt_hash + developer information'
+      developer_attestation: 'prior attestion + developer information'
     },
-    accomplishment: 'The developer gives a signed attestation about the model used by the AI agent.',
-    accomplishment_title: 'Add developer\'s information to agent ID'
+    accomplishment: 'Developer sends signed attestation about the model and how it responded to the prompt.',
+    accomplishment_title: 'Developer\'s attestation'
   },
   {
     id: 5,
@@ -307,14 +309,14 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
       provider_security_evidence: 'provider.net/security_evidence/agent_instance_12345',
       agent_instance_identifier: 'agent_instance_12345',
       agent_instance_shutdown_command: 'code: 5559',
-      provider_attestation: 'signed: prompt_hash + provider information'
+      provider_attestation: 'prior attestion + provider attestation'
     },
-    accomplishment: 'The provider gives a signed attestation about its own identity and the presence of an emergency shutdown mechanism.',
-    accomplishment_title: 'Add provider\'s information to agent ID'
+    accomplishment: 'Provider attestation including safety evidence, instance identifier, and emergency shutdown mechanism.',
+    accomplishment_title: 'Provider Attestation'
   },
   {
     id: 6,
-    title: 'Agent Performs Action',
+    title: 'Agent Attempts Action',
     sender: 'AGENT',
     receiver: 'SERVICE',
     description: 'Agent attempts to perform the action.',
@@ -327,8 +329,8 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
       },
       agent_id: 'see credential details',
     },
-    accomplishment: 'Cryptographically proven agent attempts to take an action.',
-    accomplishment_title: ''
+    accomplishment: 'Agent ID accompanies the request to the service, which can use it to determine whether to authorize the action.',
+    accomplishment_title: 'Agent ID Delivered to Service'
   },
   {
     id: 7,
@@ -348,11 +350,28 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
     accomplishment_title: 'Log the agent ID'
   },
   {
-    id: 8,
-    title: 'Reject Request',
+    id: '8a',
+    title: 'Outcome A: Accept Request',
     sender: 'SERVICE',
     receiver: 'AGENT',
-    description: 'The service cannot confirm that the agent is authorized to take this action, so it rejects the request and notifies the agent.',
+    description: 'If the request satisfies the service, it completes the action and notifies the agent.',
+    payload: {
+      status: 'SUCCESS',
+      transaction_details: {
+        amount: '1000 USD',
+        from_account: 'checking',
+        to_account: 'savings',
+      },
+    },
+    accomplishment: 'The agent successfully completes the task for the deployer.',
+    accomplishment_title: 'Authorized Action Completed'
+  },
+  {
+    id: "8b",
+    title: 'Outcome B: Reject Request',
+    sender: 'SERVICE',
+    receiver: 'AGENT',
+    description: 'If the request does not satisfy the service, it declines to carry out the action and notifies the agent.',
     payload: {
       status: 'ACTION_REJECTED',
       transaction_details: {
@@ -361,7 +380,7 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
         to_account: 'savings',
       },
     },
-    accomplishment: 'Without the appropriate authorization signals, the service declines to carry out the task',
+    accomplishment: 'Without the appropriate authorization signals, or for other reasons, the service declines to carry out the task',
     accomplishment_title: 'Unauthorized Request Rejected'
   }
   ],
@@ -383,16 +402,16 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
     title: 'Start Agent Instance',
     sender: 'PROVIDER',
     receiver: 'AGENT',
-    description: 'Provider provisions a compute process to invoke tools and call external services, as appropriate.',
+    description: 'Provider provisions a compute workload to run the agent, invoke tools, and call external services.',
     payload: {
       
     },
-    accomplishment: 'The Provider establishes control over the agent\'s compute process. It can later terminate this process if necessary.',
+    accomplishment: 'The Provider establishes control over the agent\'s compute workload. It can later terminate this workload if necessary.',
     accomplishment_title: 'Provider control over agent instance'
   },
   {
     id: 2,
-    title: 'Initial Prompt',
+    title: 'Prompt the Agent',
     sender: 'DEPLOYER',
     receiver: 'PROVIDER',
     description: 'Deployer sends a natural language prompt to the active Agent to transfer 1000 USD between two of their bank accounts.',
@@ -481,7 +500,7 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
     receiver: 'AGENT',
     description: 'Service issues an authorization token to the agent.',
     payload: {
-      oauth_access_token: 'dpop_at_98f2...',
+      oauth_access_token: '',
       expires_in: 3600,
       granted_scopes: ['transfer_funds', 'recipient_account_type: \'sender_owned\''],
     },
@@ -490,7 +509,7 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
   },
   {
     id: 9,
-    title: 'Agent Performs Action',
+    title: 'Agent Attemps Action',
     sender: 'AGENT',
     receiver: 'SERVICE',
     description: 'Agent uses the authorization token to perform the action.',
@@ -501,7 +520,7 @@ export const MOCK_PROTOCOL_FLOWS: Record<string, ProtocolStep[]> = {
         from_account: 'checking',
         to_account: 'savings'
       },
-      oauth_access_token: 'dpop_at_98f2...',
+      oauth_access_token: '',
     },
     accomplishment: 'Agent executes authorized actions.',
     accomplishment_title: ''
@@ -570,47 +589,44 @@ export class MockProtocolSource implements ProtocolSource {
     if (flowName === 'Agent ID, no OAuth') {
       return [
         { label: 'Deployer Identifier', value: 'deployer \#101', active: stepIdx >= 2 },
-        { label: 'Deployer Accountability ID', value: 'Jane Doe', active: stepIdx >= 2 },
+        { label: 'Deployer Accountability ID', value: 'Jane Doe (encrypted)', active: stepIdx >= 2 },
         { label: 'Provider Identifier', value: 'provider \#202', active: stepIdx >= 5 },
         { label: 'Provider Security Evidence', value: 'provider \#202', active: stepIdx >= 5 },
-        { label: 'Signed Attestions', value: 'nested signed attestations', active: stepIdx >= 2 },
+        { label: 'Valid Attestation Chain', value: 'signed attestations chained together', active: stepIdx >= 2 },
         { label: 'Developer Identifier', value: 'LLM Developer XYZ', active: stepIdx >= 4 },
         { label: 'Foundation Model Identifier', value: 'foundation model name', active: stepIdx >= 4 },
         { label: 'Foundation Model Safety Evidence', value: 'foundation model safety evidence', active: stepIdx >= 4 },
-        { label: 'Agent Instance Identifier', value: 'agent_instance \#7343', active: stepIdx >= 5 },
-        { label: 'Agent Instance Shutdown Command', value: 'agent_instance_shutdown code: 5559', active: stepIdx >= 5 },
-        { label: 'Authorization Policies', value: 'OPA Bounds', active: stepIdx >= 9 },
-        { label: 'OAuth Access Token', value: 'dpop_at_98f2...', active: stepIdx >= 9 },
+        { label: 'Agent Instance Identifier', value: 'agent_instance_workload_id', active: stepIdx >= 5 },
+        { label: 'Agent Instance Shutdown Command', value: 'agent instance shutdown code: 5559', active: stepIdx >= 5 },
+        { label: 'Authorization Evidence', value: 'OPA Bounds', active: stepIdx >= 100 },
       ];
     } else if (flowName === 'OAuth, no agent ID') {
       return [
         { label: 'Deployer Identifier', value: 'deployer \#101', active: stepIdx >= 100 },
-        { label: 'Deployer Accountability ID', value: 'Jane Doe', active: stepIdx >= 100 },
+        { label: 'Deployer Accountability ID', value: 'Jane Doe  (encrypted)', active: stepIdx >= 100 },
         { label: 'Provider Identifier', value: 'provider \#202', active: stepIdx >= 100 },
         { label: 'Provider Security Evidence', value: 'provider \#202', active: stepIdx >= 100 },
-         { label: 'Signed Attestions', value: 'nested signed attestations', active: stepIdx >= 100 },
+        { label: 'Valid Attestation Chain', value: 'signed attestations chained together', active: stepIdx >= 100 },
         { label: 'Developer Identifier', value: 'LLM Developer XYZ', active: stepIdx >= 100 },
         { label: 'Foundation Model Identifier', value: 'foundation model name', active: stepIdx >= 100 },
         { label: 'Foundation Model Safety Evidence', value: 'foundation model safety evidence', active: stepIdx >= 100 },
-        { label: 'Agent Instance Identifier', value: 'agent_instance \#7343', active: stepIdx >= 100 },
-        { label: 'Agent Instance Shutdown Command', value: 'agent_instance_shutdown code: 5559', active: stepIdx >= 100 },
-        { label: 'Authorization Policies', value: 'OPA Bounds', active: stepIdx >= 8 },
-        { label: 'OAuth Access Token', value: 'dpop_at_98f2...', active: stepIdx >= 8 },
+        { label: 'Agent Instance Identifier', value: 'agent_instance_workload_id', active: stepIdx >= 100 },
+        { label: 'Agent Instance Shutdown Command', value: 'agent instance shutdown code: 5559', active: stepIdx >= 100 },
+        { label: 'Authorization Evidence', value: 'OAuth Access Token', active: stepIdx >= 8 },
       ];
     } else {
       return [
         { label: 'Deployer Identifier', value: 'deployer \#101', active: stepIdx >= 2 },
-        { label: 'Deployer Accountability ID', value: 'Jane Doe', active: stepIdx >= 2 },
+        { label: 'Deployer Accountability ID', value: 'Jane Doe (encrypted)', active: stepIdx >= 2 },
         { label: 'Provider Identifier', value: 'provider \#202', active: stepIdx >= 5 },
         { label: 'Provider Security Evidence', value: 'provider \#202', active: stepIdx >= 5 },
-         { label: 'Signed Attestions', value: 'nested signed attestations', active: stepIdx >= 2 },
+         { label: 'Valid Attestation Chain', value: 'signed attestations chained together', active: stepIdx >= 2 },
         { label: 'Developer Identifier', value: 'LLM Developer XYZ', active: stepIdx >= 4 },
         { label: 'Foundation Model Identifier', value: 'foundation model name', active: stepIdx >= 4 },
         { label: 'Foundation Model Safety Evidence', value: 'foundation model safety evidence', active: stepIdx >= 4 },
-        { label: 'Agent Instance Identifier', value: 'agent_instance \#7343', active: stepIdx >= 5 },
-        { label: 'Agent Instance Shutdown Command', value: 'agent_instance_shutdown code: 5559', active: stepIdx >= 5 },
-        { label: 'Authorization Policies', value: 'OPA Bounds', active: stepIdx >= 9 },
-        { label: 'OAuth Access Token', value: 'dpop_at_98f2...', active: stepIdx >= 9 },
+        { label: 'Agent Instance Identifier', value: 'agent_instance_workload_id', active: stepIdx >= 5 },
+        { label: 'Agent Instance Shutdown Command', value: 'agent instance shutdown code: 5559', active: stepIdx >= 5 },
+        { label: 'Authorization Evidence', value: 'OAuth Access Token', active: stepIdx >= 9 },
       ];
     }
 

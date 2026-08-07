@@ -119,7 +119,7 @@ const INVESTIGATION_SCENARIOS = {
     rootCause: 'Malicious content embedded in external data sources (emails, documents, web pages) gives an attacker control over the deployer\'s agent.',
     impact: 'The attacker can direct the agent to perform actions outside its intented or allowed scope.',
     identify: [
-      { label: 'Authorization Policies', help: 'Identifies agents attempting to act outside their allowed scope.' },
+      { label: 'Authorization Evidence', help: 'Identifies agents attempting to act outside their allowed scope.' },
     ],
     respond: [
       { label: 'Agent Instance Shutdown Command', help: 'Immediately halts the agent instance, preventing further harm.' },
@@ -152,7 +152,7 @@ const INVESTIGATION_SCENARIOS = {
     rootCause: 'Weaknesses in the foundation model.',
     impact: 'The agent misgeneralize goals or otherwise deviates from the deployer\'s intended behavior',
     identify: [
-      { label: 'Authorization Policies', help: 'Identifies agents attempting to act outside their allowed scope.' },
+      { label: 'Authorization Evidence', help: 'Identifies agents attempting to act outside their allowed scope.' },
     ],
     respond: [
       { label: 'Agent Instance Shutdown Command', help: 'Immediately halts the agent instance, preventing further harm.' },
@@ -206,7 +206,7 @@ const ShutdownActorIcon = ({ type, active, red }: { type: ShutdownActor; active?
 export const ProtocolFlow = () => {
   const [steps, setSteps] = useState<ProtocolStep[]>([]);
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
-  const [activeFlow, setActiveFlow] = useState<string>(Object.keys(MOCK_PROTOCOL_FLOWS)[0]);
+  const [activeFlow, setActiveFlow] = useState<string>('Agent ID, no OAuth');
   const [idComponents, setIdComponents] = useState<IdComponent[]>([]);
   const [openActor, setOpenActor] = useState<Actor | null>(null);
   const [viewMode, setViewMode] = useState<'protocol' | 'id-investigation' | 'investigation'>('protocol');
@@ -402,11 +402,11 @@ export const ProtocolFlow = () => {
     },
     {
       title: 'Can I trust the agent and the agent ID?',
-      labels: ['Foundation Model Safety Evidence', 'Provider Security Evidence', 'Signed Attestions'],
+      labels: ['Foundation Model Safety Evidence', 'Provider Security Evidence', 'Valid Attestation Chain'],
     },
     {
       title: 'What is the agent authorized to do?',
-      labels: ['OAuth Access Token', 'Authorization Policies'],
+      labels: ['Authorization Evidence'],
     },
   ], []);
 
@@ -554,12 +554,8 @@ export const ProtocolFlow = () => {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between px-3 md:px-6 mb-2">
         <div className="flex items-baseline gap-4">
           <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-foreground italic leading-none">
-            AI AGENT ID TESTBED
+            AI AGENT ID TECHNICAL DEMO
           </h1>
-          <div className="hidden md:flex items-center gap-2 border-l pl-4 border-border h-4">
-            <Activity className="w-3 h-3 text-primary animate-pulse" />
-            <span className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase">Proof of Concept Visualization</span>
-          </div>
         </div>
 
         {/* View mode toggle */}
